@@ -1,0 +1,31 @@
+{
+  "name": "editor-upgrade-for-tinymce",
+  "version": "0.1.0",
+  "description": "Replaces the TinyMCE 4 editor bundled with WordPress with TinyMCE 8",
+  "author": "Marios Giannopoulos",
+  "license": "GPL-2.0-or-later",
+  "scripts": {
+    "start": "wp-env start",
+    "stop": "wp-env stop",
+    "destroy": "wp-env destroy",
+    "shell": "wp-env run cli /bin/bash",
+    "lint": "./vendor/bin/phpcs --standard=phpcs.xml --extensions=php .",
+    "lint:fix": "./vendor/bin/phpcbf --standard=phpcs.xml --extensions=php .",
+    "test:e2e:install": "bunx playwright install chromium",
+    "test:e2e": "bunx playwright test --config tests/e2e-pw/playwright.config.ts",
+    "test:e2e:report": "bunx playwright show-report tests/e2e-pw/playwright-report",
+    "i18n:make-pot": "wp-env run cli -- wp i18n make-pot wp-content/plugins/editor-upgrade-for-tinymce wp-content/plugins/editor-upgrade-for-tinymce/languages/editor-upgrade-for-tinymce.pot --slug=editor-upgrade-for-tinymce --domain=editor-upgrade-for-tinymce --exclude=node_modules,vendor,.git,languages,tests,docs,assets/vendor",
+    "i18n": "bun run i18n:make-pot",
+    "tinymce:update": "bash scripts/update-tinymce.sh",
+    "bundle": "sh scripts/bundle.sh"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.0",
+    "@wordpress/env": "^11.17.0",
+    "bestzip": "^4.0.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mgiannopoulos24/editor-upgrade-for-tinymce"
+  }
+}

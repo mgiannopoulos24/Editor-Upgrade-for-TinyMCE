@@ -1,0 +1,11 @@
+# Build files
+build/
+
+# Dependencies
+node_modules/
+/vendor/
+
+# Tests
+tests/**/test-results
+tests/**/playwright-report
+tests/**/.auth

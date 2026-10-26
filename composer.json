@@ -1,0 +1,23 @@
+{
+    "name": "mgiannopoulos24/editor-upgrade-for-tinymce",
+    "description": "Replaces the TinyMCE 4 editor bundled with WordPress with TinyMCE 8.",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "Marios Giannopoulos",
+            "email": "mariosgian_2002@yahoo.gr",
+            "homepage": "https://github.com/mgiannopoulos24"
+        }
+    ],
+    "require-dev": {
+        "wp-coding-standards/wpcs": "^3.0",
+        "squizlabs/php_codesniffer": "^3.7"
+    },
+    "minimum-stability": "stable",
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    }
+}

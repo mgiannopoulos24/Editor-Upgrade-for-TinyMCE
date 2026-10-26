@@ -1,0 +1,6 @@
+== Changelog ==
+
+= 0.1.0 =
+* Initial development version: TinyMCE 8.10.0 replaces the bundled TinyMCE 4
+* Map TinyMCE 4 toolbar buttons (`formatselect`, `styleselect`, `fontselect`, `fontsizeselect`) to their TinyMCE 8 names
+* Fix the Classic block failing to load because core passes an empty `external_plugins` array
