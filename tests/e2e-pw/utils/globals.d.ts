@@ -39,13 +39,22 @@ interface TinyMCE {
 	majorVersion: string;
 	activeEditor: TinyMCEEditor;
 	Env: { browser: { isIE(): boolean } };
+	ui: {
+		FloatPanel: { zIndex: number; hideAll(): void };
+		MessageBox: { confirm( text: string, callback: ( state: boolean ) => void ): void };
+		Factory: { add( type: string, control: unknown ): void };
+		Control: { extend( members: object ): unknown };
+	};
 	get( id: string ): TinyMCEEditor;
-	PluginManager: { add( name: string, plugin: () => object ): void };
+	PluginManager: { add( name: string, plugin: ( editor: TinyMCEEditor ) => object | void ): void };
 	init( settings: Record<string, unknown> & { setup?( editor: TinyMCEEditor ): void } ): Promise<TinyMCEEditor[]>;
 }
 
 interface Window {
 	wp: {
+		customize: {
+			section( id: string ): { active(): boolean; expand( args: object ): void };
+		};
 		data: { dispatch( store: string ): { insertBlocks( block: unknown ): void } };
 		blocks: { createBlock( name: string ): unknown };
 	};
@@ -56,5 +65,6 @@ interface Window {
 	compat4xLog: string[];
 	dialogProbe(): Promise<string[]>;
 	utilProbe( echoUrl: string ): Promise<string[]>;
+	uiProbe(): string[];
 	compat4xControl: TinyMCEV4Control;
 }

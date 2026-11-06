@@ -1609,6 +1609,354 @@
 	shimEnv();
 
 	/*
+	 * tinymce.ui, the TinyMCE 4 UI framework. TinyMCE 8 has no equivalent, so controls keep their v4
+	 * API but do not render. A plugin that extends them at load time keeps running, and whatever it
+	 * adds through `editor.addButton()` or `windowManager.open()` still works.
+	 */
+	function shimUiFramework() {
+		var Tools = tinymce.util.Tools;
+		var Class = tinymce.util.Class;
+		var ui = tinymce.ui = tinymce.ui || {};
+		var types = {};
+		var floatPanelZIndex = 100100;
+
+		function warnNotRendered() {
+			warnOnce( 'ui.render', 'tinymce.ui controls do not render in TinyMCE 8; use editor.ui.registry or a dialog.' );
+		}
+
+		function createClassList( classes ) {
+			var names = String( classes || '' ).split( /\s+/ ).filter( Boolean );
+
+			return {
+				add: function ( name ) {
+					if ( names.indexOf( name ) === -1 ) {
+						names.push( name );
+					}
+					return this;
+				},
+				remove: function ( name ) {
+					names = names.filter( function ( other ) {
+						return other !== name;
+					} );
+					return this;
+				},
+				toggle: function ( name, state ) {
+					return ( undefined === state ? ! this.contains( name ) : state ) ? this.add( name ) : this.remove( name );
+				},
+				contains: function ( name ) {
+					return names.indexOf( name ) > -1;
+				},
+				toString: function () {
+					return names.join( ' ' );
+				},
+			};
+		}
+
+		function property( name ) {
+			return function ( value ) {
+				if ( ! arguments.length ) {
+					return this._state[ name ];
+				}
+
+				this._state[ name ] = value;
+
+				return this;
+			};
+		}
+
+		function returnThis() {
+			return this;
+		}
+
+		function renderNothing() {
+			warnNotRendered();
+			return this;
+		}
+
+		var Control = Class.extend( {
+			Defaults: {},
+			init: function ( settings ) {
+				this.settings = Tools.extend( {}, this.Defaults, settings );
+				this.classes = createClassList( this.settings.classes );
+				this.data = {};
+				this._listeners = {};
+				this._state = {
+					active: !! this.settings.active,
+					disabled: !! this.settings.disabled,
+					name: this.settings.name,
+					text: this.settings.text,
+					value: this.settings.value,
+					visible: ! this.settings.hidden,
+				};
+			},
+			active: property( 'active' ),
+			disabled: property( 'disabled' ),
+			name: property( 'name' ),
+			text: property( 'text' ),
+			value: property( 'value' ),
+			visible: property( 'visible' ),
+			show: function () {
+				return this.visible( true );
+			},
+			hide: function () {
+				return this.visible( false );
+			},
+			parent: function ( parent ) {
+				if ( ! arguments.length ) {
+					return this._parent;
+				}
+
+				this._parent = parent;
+
+				return this;
+			},
+			parents: function () {
+				var result = [];
+				var current = this._parent;
+
+				while ( current ) {
+					result.push( current );
+					current = current._parent;
+				}
+
+				return addCollectionMethods( result );
+			},
+			on: function ( names, callback ) {
+				var listeners = this._listeners;
+
+				names.toLowerCase().split( /\s+/ ).forEach( function ( name ) {
+					listeners[ name ] = ( listeners[ name ] || [] ).concat( callback );
+				} );
+
+				return this;
+			},
+			off: function ( names, callback ) {
+				var listeners = this._listeners;
+
+				names.toLowerCase().split( /\s+/ ).forEach( function ( name ) {
+					listeners[ name ] = callback ? ( listeners[ name ] || [] ).filter( function ( listener ) {
+						return listener !== callback;
+					} ) : [];
+				} );
+
+				return this;
+			},
+			fire: function ( name, event ) {
+				var self = this;
+				var lowerName = name.toLowerCase();
+				var prevented = false;
+				var args = Tools.extend( {
+					control: self,
+					type: lowerName,
+					preventDefault: function () {
+						prevented = true;
+					},
+					isDefaultPrevented: function () {
+						return prevented;
+					},
+				}, event );
+
+				( self._listeners[ lowerName ] || [] ).forEach( function ( listener ) {
+					listener.call( self, args );
+				} );
+
+				return args;
+			},
+			hasEventListeners: function ( name ) {
+				return ( this._listeners[ name.toLowerCase() ] || [] ).length > 0;
+			},
+			aria: returnThis,
+			blur: returnThis,
+			focus: returnThis,
+			moveBy: returnThis,
+			moveRel: returnThis,
+			moveTo: returnThis,
+			reflow: returnThis,
+			remove: returnThis,
+			repaint: returnThis,
+			resizeBy: returnThis,
+			resizeTo: returnThis,
+			scrollIntoView: returnThis,
+			renderTo: renderNothing,
+			renderBefore: renderNothing,
+			postRender: renderNothing,
+			renderHtml: function () {
+				warnNotRendered();
+				return '';
+			},
+			getEl: function () {
+				warnNotRendered();
+				return null;
+			},
+		} );
+
+		var Container = Control.extend( {
+			init: function ( settings ) {
+				this._super( settings );
+				this._items = [];
+				this.add( this.settings.items || [] );
+			},
+			add: function ( items ) {
+				var self = this;
+
+				toArray( items ).forEach( function ( item ) {
+					var control = item instanceof Control ? item : factory.create( item );
+
+					control.parent( self );
+					self._items.push( control );
+				} );
+
+				return self;
+			},
+			append: function ( items ) {
+				return this.add( items );
+			},
+			items: function () {
+				return addCollectionMethods( this._items.slice() );
+			},
+			find: function ( selector ) {
+				var name = String( selector );
+
+				return addCollectionMethods( this._items.filter( function ( control ) {
+					return '*' === name || '#' + control.name() === name;
+				} ) );
+			},
+		} );
+
+		var factory = {
+			add: function ( type, control ) {
+				types[ type.toLowerCase() ] = control;
+			},
+			has: function ( type ) {
+				return !! types[ type.toLowerCase() ];
+			},
+			create: function ( type, settings ) {
+				var Type;
+
+				if ( typeof type === 'string' ) {
+					settings = settings || {};
+					settings.type = type;
+				} else {
+					settings = type;
+					type = settings.type;
+				}
+
+				type = type.toLowerCase();
+				Type = types[ type ];
+
+				if ( ! Type ) {
+					throw new Error( 'Could not find control by type: ' + type );
+				}
+
+				return new Type( settings );
+			},
+		};
+
+		function define( name, control ) {
+			if ( ! ui[ name ] ) {
+				ui[ name ] = control;
+			}
+
+			factory.add( name, ui[ name ] );
+		}
+
+		define( 'Control', Control );
+		define( 'Widget', Control.extend( {} ) );
+		define( 'Container', Container );
+
+		[ 'Panel', 'Form', 'FieldSet', 'FormItem', 'Toolbar', 'MenuBar', 'ButtonGroup', 'TabPanel', 'Path', 'ElementPath' ].forEach( function ( name ) {
+			define( name, Container.extend( {} ) );
+		} );
+
+		define( 'FloatPanel', ui.Panel.extend( {
+			hideAll: function () {
+				ui.FloatPanel.hideAll();
+			},
+			Statics: {
+				// TinyMCE 8 closes its menus and popups when the document receives a mouse press.
+				hideAll: function () {
+					document.dispatchEvent( new MouseEvent( 'mousedown', { bubbles: true } ) );
+					document.dispatchEvent( new MouseEvent( 'mouseup', { bubbles: true } ) );
+				},
+			},
+		} ) );
+
+		// Core raises this to stay above #wpadminbar and the Customizer; editor.css reads the variable.
+		Object.defineProperty( ui.FloatPanel, 'zIndex', {
+			configurable: true,
+			get: function () {
+				return floatPanelZIndex;
+			},
+			set: function ( value ) {
+				floatPanelZIndex = value;
+				document.documentElement.style.setProperty( '--editor-upgrade-float-panel-z-index', value );
+			},
+		} );
+
+		define( 'Window', ui.FloatPanel.extend( {} ) );
+		define( 'Menu', ui.FloatPanel.extend( {} ) );
+		define( 'Tooltip', Control.extend( {} ) );
+		define( 'Notification', Control.extend( {} ) );
+
+		[ 'Button', 'BrowseButton', 'Checkbox', 'ColorBox', 'ColorButton', 'ColorPicker', 'ComboBox', 'DropZone', 'FilePicker', 'Iframe', 'InfoBox', 'Label', 'ListBox', 'MenuButton', 'MenuItem', 'PanelButton', 'Progress', 'Radio', 'ResizeHandle', 'SelectBox', 'Slider', 'Spacer', 'SplitButton', 'TextBox', 'Throbber' ].forEach( function ( name ) {
+			define( name, ui.Widget.extend( {} ) );
+		} );
+
+		// Layouts, and helpers that were mixed into controls.
+		[ 'Layout', 'AbsoluteLayout', 'FitLayout', 'FlexLayout', 'FlowLayout', 'GridLayout', 'StackLayout' ].forEach( function ( name ) {
+			define( name, Class.extend( {} ) );
+		} );
+
+		[ 'DragHelper', 'FormatControls', 'KeyboardNavigation', 'Movable', 'ReflowQueue', 'Resizable', 'Scrollable', 'Selector' ].forEach( function ( name ) {
+			if ( ! ui[ name ] ) {
+				ui[ name ] = {};
+			}
+		} );
+
+		ui.Collection = ui.Collection || function ( items ) {
+			var collection = addCollectionMethods( toArray( items ).slice() );
+
+			collection.name = function () {
+				return collection[ 0 ] ? collection[ 0 ].name() : undefined;
+			};
+
+			return collection;
+		};
+
+		ui.Factory = ui.Factory || factory;
+
+		ui.MessageBox = ui.MessageBox || {
+			OK: 1,
+			OK_CANCEL: 2,
+			YES_NO: 3,
+			YES_NO_CANCEL: 4,
+			msgBox: function ( settings ) {
+				var text = typeof settings === 'string' ? settings : settings.text;
+				var manager = tinymce.activeEditor && tinymce.activeEditor.windowManager;
+
+				if ( ! manager ) {
+					return;
+				}
+
+				if ( settings.buttons && settings.buttons !== ui.MessageBox.OK ) {
+					manager.confirm( text, settings.callback );
+				} else {
+					manager.alert( text, settings.callback );
+				}
+			},
+			alert: function ( settings, callback ) {
+				ui.MessageBox.msgBox( Tools.extend( typeof settings === 'string' ? { text: settings } : settings, { callback: callback } ) );
+			},
+			confirm: function ( settings, callback ) {
+				ui.MessageBox.msgBox( Tools.extend( typeof settings === 'string' ? { text: settings } : settings, {
+					callback: callback,
+					buttons: ui.MessageBox.OK_CANCEL,
+				} ) );
+			},
+		};
+	}
+
+	/*
 	 * tinymce.util and tinymce.html helpers removed after TinyMCE 4. The bodies of SaxParser, Class,
 	 * and the helpers they use are ported from TinyMCE 4.9.11 (LGPL 2.1) to keep their exact behavior.
 	 */
@@ -2353,6 +2701,7 @@
 	}
 
 	shimUtilities();
+	shimUiFramework();
 
 	/*
 	 * TinyMCE 4 instantiated plugins with `new`, so `tinymce.create()` classes work and a plain

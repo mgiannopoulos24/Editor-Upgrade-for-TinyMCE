@@ -49,3 +49,5 @@ Toolbar buttons that TinyMCE renamed after version 4 (`formatselect`, `stylesele
 * Keep the XHTML format in `tinymce.html.Writer` and `Serializer` when they are used directly
 * Add v4 class names to the editor chrome, menus, and dialogs for plugin CSS and core's toolbar height lookup
 * Skip plugins merged into TinyMCE 8 without a warning, and replace `forced_root_block: false` with `p`
+* Add `tinymce.ui` with the TinyMCE 4 control API, so plugins that extend it at load time keep running; controls do not render
+* Keep menus and dialogs above the admin bar, and let `tinymce.ui.FloatPanel.zIndex` move them, which the Customizer relies on

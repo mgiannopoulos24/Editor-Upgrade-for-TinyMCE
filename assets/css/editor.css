@@ -29,3 +29,8 @@
 .tox .tox-editor-header.mce-toolbar-grp > div {
 	padding: 0;
 }
+
+/* Above #wpadminbar, as in TinyMCE 4. compat4x sets the variable from tinymce.ui.FloatPanel.zIndex. */
+.tox.tox-tinymce-aux {
+	z-index: var(--editor-upgrade-float-panel-z-index, 100100);
+}
