@@ -1345,6 +1345,8 @@ The current bootstrap (`editor_js()`) prints `tinyMCEPreInit` with `baseURL`, `s
 | `.tox-tbtn` | `mce-btn` |
 | `.tox-toolbar__group` | `mce-btn-group` |
 
+**Implementation note (November 2026):** `.mce-btn`, `.mce-btn-group`, and `.mce-toolbar` are not added. Core's `editor.css` styles them and measurably restyles every toolbar button (margins, borders, backgrounds), while plugin rules for them expect the v4 layout anyway. `.mce-toolbar-grp` is kept, with its core padding and z-index neutralized in `assets/css/editor.css`, because core's `getToolbarHeight()` looks it up.
+
 This is a transition aid, not a compatibility guarantee. It fixes selectors, not layout assumptions. A plugin that positions `.mce-toolbar-grp` absolutely will still be wrong.
 
 **What `compat4x` cannot fix:**

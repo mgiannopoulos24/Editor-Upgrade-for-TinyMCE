@@ -47,3 +47,5 @@ Toolbar buttons that TinyMCE renamed after version 4 (`formatselect`, `stylesele
 * Restore `tinymce.util.XHR`, `Promise`, `JSON`, `JSONP`, `JSONRequest`, and `Class`, `tinymce.html.SaxParser`, `tinymce.dom.DomQuery` and `Sizzle`, and `tinymce.create()` and `createNS()`
 * Instantiate plugins with `new` as TinyMCE 4 did, so `tinymce.create()` plugins and functions that set `this` work
 * Keep the XHTML format in `tinymce.html.Writer` and `Serializer` when they are used directly
+* Add v4 class names to the editor chrome, menus, and dialogs for plugin CSS and core's toolbar height lookup
+* Skip plugins merged into TinyMCE 8 without a warning, and replace `forced_root_block: false` with `p`

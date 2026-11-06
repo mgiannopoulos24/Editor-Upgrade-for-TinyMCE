@@ -52,6 +52,25 @@
 		help: { title: 'Help', items: 'help' },
 	};
 
+	// TinyMCE 4 plugins that became core features in TinyMCE 8, so nothing is lost by skipping them.
+	var MERGED_PLUGINS = [ 'colorpicker', 'contextmenu', 'hr', 'noneditable', 'paste', 'print', 'tabfocus', 'textcolor', 'textpattern' ];
+
+	/*
+	 * v4 class names on the TinyMCE 8 chrome, for plugin CSS and core's `.mce-toolbar-grp` lookups.
+	 * Not `.mce-btn`, `.mce-btn-group`, or `.mce-toolbar`: core's editor.css would restyle every
+	 * toolbar button, and a plugin's own rules for them expect the v4 layout anyway.
+	 */
+	var LEGACY_CLASSES = {
+		'.tox-tinymce': 'mce-tinymce',
+		'.tox-editor-header': 'mce-toolbar-grp',
+		'.tox-edit-area': 'mce-edit-area',
+		'.tox-statusbar': 'mce-statusbar',
+		'.tox-menubar': 'mce-menubar',
+		'.tox-menu': 'mce-menu',
+		'.tox-dialog': 'mce-window',
+		'.tox-pop': 'mce-floatpanel',
+	};
+
 	var warned = {};
 
 	function warn( message ) {
@@ -1478,6 +1497,52 @@
 		} );
 	}
 
+	function addLegacyClasses( root ) {
+		Object.keys( LEGACY_CLASSES ).forEach( function ( selector ) {
+			if ( root.matches( selector ) ) {
+				root.classList.add( LEGACY_CLASSES[ selector ] );
+			}
+
+			root.querySelectorAll( selector ).forEach( function ( element ) {
+				element.classList.add( LEGACY_CLASSES[ selector ] );
+			} );
+		} );
+	}
+
+	// Menus and dialogs are created on demand in these shared containers, outside the editor.
+	function observeSharedContainers() {
+		document.querySelectorAll( '.tox-tinymce-aux, .tox-silver-sink' ).forEach( function ( container ) {
+			if ( container.compat4xObserved ) {
+				return;
+			}
+
+			container.compat4xObserved = true;
+			addLegacyClasses( container );
+
+			new MutationObserver( function ( mutations ) {
+				mutations.forEach( function ( mutation ) {
+					mutation.addedNodes.forEach( function ( node ) {
+						if ( 1 === node.nodeType ) {
+							addLegacyClasses( node );
+						}
+					} );
+				} );
+			} ).observe( container, { childList: true, subtree: true } );
+		} );
+	}
+
+	function shimLegacyClasses( editor ) {
+		editor.on( 'init', function () {
+			var container = editor.getContainer();
+
+			if ( container ) {
+				addLegacyClasses( container );
+			}
+
+			observeSharedContainers();
+		} );
+	}
+
 	// SetupEditor fires right before `setup` callbacks, which AddEditor would be too late for.
 	tinymce.on( 'SetupEditor', function ( event ) {
 		shimDomQuery( event.editor );
@@ -1488,6 +1553,7 @@
 		event.editor.on( 'ScriptsLoaded', function () {
 			shimWindowManager( event.editor );
 		} );
+		shimLegacyClasses( event.editor );
 		shimSaveContentEvent( event.editor );
 		shimWordPressContent( event.editor );
 	} );
@@ -2402,7 +2468,7 @@
 				tinymce.PluginManager.get( name )
 			);
 
-			if ( name && ! keep ) {
+			if ( name && ! keep && MERGED_PLUGINS.indexOf( name ) === -1 ) {
 				warn( 'Skipped TinyMCE plugin "' + name + '": not available in TinyMCE 8.' );
 			}
 
@@ -2465,6 +2531,14 @@
 		if ( ! ( 'allow_html_in_comments' in settings ) ) {
 			settings.allow_html_in_comments = true;
 		}
+
+		// TinyMCE 8 needs a root block and warns on anything else, and it no longer reads `rtl_ui`.
+		if ( 'forced_root_block' in settings && ! settings.forced_root_block ) {
+			settings.forced_root_block = 'p';
+			warn( '"forced_root_block" must be a block name in TinyMCE 8; using "p".' );
+		}
+
+		delete settings.rtl_ui;
 
 		// TinyMCE 8 accepts true, false, or 'both' for `resize`; `'vertical'` is invalid.
 		if ( settings.resize === 'vertical' ) {

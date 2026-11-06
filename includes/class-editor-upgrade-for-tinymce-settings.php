@@ -112,8 +112,13 @@ class Editor_Upgrade_For_TinyMCE_Settings {
 			$settings['allow_html_in_comments'] = true;
 		}
 
+		// TinyMCE 8 needs a root block and warns on anything else.
+		if ( isset( $settings['forced_root_block'] ) && ! $settings['forced_root_block'] ) {
+			$settings['forced_root_block'] = 'p';
+		}
+
 		// Removed in TinyMCE 8 and no longer used by WordPress; v8 warns at init.
-		unset( $settings['tabfocus_elements'] );
+		unset( $settings['tabfocus_elements'], $settings['rtl_ui'] );
 
 		// The v4 resize option allowed a vertical value. TinyMCE 8 does not, so use a boolean.
 		if ( isset( $settings['resize'] ) && 'vertical' === $settings['resize'] ) {

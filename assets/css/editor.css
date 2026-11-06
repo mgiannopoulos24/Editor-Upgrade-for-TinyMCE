@@ -17,3 +17,15 @@
 .tox i.mce-ico.mce-i-dfw {
 	font-family: dashicons;
 }
+
+/*
+ * Core's editor.css and edit.css style `.mce-toolbar-grp`, which compat4x adds for plugins that look
+ * it up. These keep the TinyMCE 8 toolbar layout.
+ */
+.tox .tox-editor-header.mce-toolbar-grp {
+	z-index: 2;
+}
+
+.tox .tox-editor-header.mce-toolbar-grp > div {
+	padding: 0;
+}

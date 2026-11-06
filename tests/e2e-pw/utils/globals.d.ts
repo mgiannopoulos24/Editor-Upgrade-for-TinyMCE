@@ -17,6 +17,7 @@ interface TinyMCEEditor {
 	settings: {
 		license_key?: string;
 		api_key?: string;
+		forced_root_block?: string;
 	};
 	buttons: Record<string, TinyMCEV4ButtonSpec>;
 	plugins: Record<string, unknown>;
