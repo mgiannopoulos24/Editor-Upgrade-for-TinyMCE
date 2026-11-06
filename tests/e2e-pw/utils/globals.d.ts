@@ -27,6 +27,7 @@ interface TinyMCEEditor {
 	getContent(): string;
 	setContent( content: string ): void;
 	save(): string;
+	remove(): void;
 	initialized: boolean;
 	focus(): void;
 	execCommand( command: string ): void;
@@ -53,5 +54,6 @@ interface Window {
 	tinymce: TinyMCE;
 	compat4xLog: string[];
 	dialogProbe(): Promise<string[]>;
+	utilProbe( echoUrl: string ): Promise<string[]>;
 	compat4xControl: TinyMCEV4Control;
 }

@@ -19,3 +19,6 @@
 * Square the editor frame so its corners no longer leave gaps inside the WordPress frame
 * Restore the `tinymce.Env` browser flags (`ie`, `iOS`, `mac`, `webkit`, `gecko`, ...) and `tinymce.isIE`, `isWebKit`, `isGecko`, `isMac`, `isOpera`
 * Translate TinyMCE 4 dialogs passed to `editor.windowManager.open()`, including form fields, tabs, URL dialogs, `getParams()`, and `getWindows()`
+* Restore `tinymce.util.XHR`, `Promise`, `JSON`, `JSONP`, `JSONRequest`, and `Class`, `tinymce.html.SaxParser`, `tinymce.dom.DomQuery` and `Sizzle`, and `tinymce.create()` and `createNS()`
+* Instantiate plugins with `new` as TinyMCE 4 did, so `tinymce.create()` plugins and functions that set `this` work
+* Keep the XHTML format in `tinymce.html.Writer` and `Serializer` when they are used directly

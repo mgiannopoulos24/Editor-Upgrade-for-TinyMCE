@@ -1542,6 +1542,778 @@
 
 	shimEnv();
 
+	/*
+	 * tinymce.util and tinymce.html helpers removed after TinyMCE 4. The bodies of SaxParser, Class,
+	 * and the helpers they use are ported from TinyMCE 4.9.11 (LGPL 2.1) to keep their exact behavior.
+	 */
+	function shimUtilities() {
+		var Tools = tinymce.util.Tools;
+		var util = tinymce.util;
+		var extendClass, initializing;
+
+		function define( target, name, value ) {
+			if ( ! ( name in target ) ) {
+				target[ name ] = value;
+			}
+		}
+
+		function serialize( o, quote ) {
+			var i, v, t, name;
+
+			quote = quote || '"';
+
+			if ( o === null ) {
+				return 'null';
+			}
+
+			t = typeof o;
+
+			if ( t === 'string' ) {
+				v = '\bb\tt\nn\ff\rr""\'\'\\\\';
+
+				return quote + o.replace( /([\u0080-\uFFFF\x00-\x1f\"\'\\])/g, function ( a, b ) {
+					if ( quote === '"' && a === '\'' ) {
+						return a;
+					}
+
+					i = v.indexOf( b );
+
+					if ( i + 1 ) {
+						return '\\' + v.charAt( i + 1 );
+					}
+
+					a = b.charCodeAt().toString( 16 );
+
+					return '\\u' + '0000'.substring( a.length ) + a;
+				} ) + quote;
+			}
+
+			if ( t === 'object' ) {
+				if ( o.hasOwnProperty && Object.prototype.toString.call( o ) === '[object Array]' ) {
+					for ( i = 0, v = '['; i < o.length; i++ ) {
+						v += ( i > 0 ? ',' : '' ) + serialize( o[ i ], quote );
+					}
+
+					return v + ']';
+				}
+
+				v = '{';
+
+				for ( name in o ) {
+					if ( o.hasOwnProperty( name ) && typeof o[ name ] !== 'function' ) {
+						v += ( v.length > 1 ? ',' + quote : quote ) + name + quote + ':' + serialize( o[ name ], quote );
+					}
+				}
+
+				return v + '}';
+			}
+
+			return '' + o;
+		}
+
+		var jsonHelper = {
+			serialize: serialize,
+			parse: function ( text ) {
+				try {
+					return JSON.parse( text );
+				} catch ( ex ) {
+					return undefined;
+				}
+			},
+		};
+
+		var jsonp = {
+			callbacks: {},
+			count: 0,
+			send: function ( settings ) {
+				var self = this;
+				var dom = tinymce.DOM;
+				var count = settings.count !== undefined ? settings.count : self.count;
+				var id = 'tinymce_jsonp_' + count;
+
+				self.callbacks[ count ] = function ( json ) {
+					dom.remove( id );
+					delete self.callbacks[ count ];
+					settings.callback( json );
+				};
+				dom.add( dom.doc.body, 'script', { id: id, src: settings.url, type: 'text/javascript' } );
+				self.count++;
+			},
+		};
+
+		var xhrHelper = Tools.extend( {
+			send: function ( settings ) {
+				var xhr;
+				var count = 0;
+
+				function ready() {
+					if ( ! settings.async || xhr.readyState === 4 || count++ > 10000 ) {
+						if ( settings.success && count < 10000 && xhr.status === 200 ) {
+							settings.success.call( settings.success_scope, '' + xhr.responseText, xhr, settings );
+						} else if ( settings.error ) {
+							settings.error.call( settings.error_scope, count > 10000 ? 'TIMED_OUT' : 'GENERAL', xhr, settings );
+						}
+
+						xhr = null;
+					} else {
+						setTimeout( ready, 10 );
+					}
+				}
+
+				settings.scope = settings.scope || this;
+				settings.success_scope = settings.success_scope || settings.scope;
+				settings.error_scope = settings.error_scope || settings.scope;
+				settings.async = settings.async !== false;
+				settings.data = settings.data || '';
+
+				xhrHelper.dispatch( 'beforeInitialize', { settings: settings } );
+
+				xhr = new XMLHttpRequest();
+
+				if ( xhr.overrideMimeType ) {
+					xhr.overrideMimeType( settings.content_type );
+				}
+
+				xhr.open( settings.type || ( settings.data ? 'POST' : 'GET' ), settings.url, settings.async );
+
+				if ( settings.crossDomain ) {
+					xhr.withCredentials = true;
+				}
+
+				if ( settings.content_type ) {
+					xhr.setRequestHeader( 'Content-Type', settings.content_type );
+				}
+
+				if ( settings.requestheaders ) {
+					Tools.each( settings.requestheaders, function ( header ) {
+						xhr.setRequestHeader( header.key, header.value );
+					} );
+				}
+
+				xhr.setRequestHeader( 'X-Requested-With', 'XMLHttpRequest' );
+				xhr = xhrHelper.dispatch( 'beforeSend', { xhr: xhr, settings: settings } ).xhr;
+				xhr.send( settings.data );
+
+				if ( ! settings.async ) {
+					return ready();
+				}
+
+				setTimeout( ready, 10 );
+			},
+		}, util.Observable );
+
+		function JSONRequest( settings ) {
+			this.settings = Tools.extend( {}, settings );
+			this.count = 0;
+		}
+
+		JSONRequest.sendRPC = function ( o ) {
+			return new JSONRequest().send( o );
+		};
+
+		JSONRequest.prototype = {
+			send: function ( args ) {
+				var ecb = args.error;
+				var scb = args.success;
+
+				args = Tools.extend( this.settings, args );
+				args.success = function ( c, x ) {
+					c = jsonHelper.parse( c );
+
+					if ( typeof c === 'undefined' ) {
+						c = { error: 'JSON Parse error.' };
+					}
+
+					if ( c.error ) {
+						ecb.call( args.error_scope || args.scope, c.error, x );
+					} else {
+						scb.call( args.success_scope || args.scope, c.result );
+					}
+				};
+				args.error = function ( ty, x ) {
+					if ( ecb ) {
+						ecb.call( args.error_scope || args.scope, ty, x );
+					}
+				};
+				args.data = serialize( {
+					id: args.id || 'c' + this.count++,
+					method: args.method,
+					params: args.params,
+				} );
+				args.content_type = 'application/json';
+				xhrHelper.send( args );
+			},
+		};
+
+		function Class() {}
+
+	Class.extend = extendClass = function (prop) {
+		var self = this;
+		var _super = self.prototype;
+		var prototype, name, member;
+		var Class = function () {
+			var i, mixins, mixin;
+			var self = this;
+			if (!initializing) {
+				if (self.init) {
+					self.init.apply(self, arguments);
+				}
+				mixins = self.Mixins;
+				if (mixins) {
+					i = mixins.length;
+					while (i--) {
+						mixin = mixins[i];
+						if (mixin.init) {
+							mixin.init.apply(self, arguments);
+						}
+					}
+				}
+			}
+		};
+		var dummy = function () {
+			return this;
+		};
+		var createMethod = function (name, fn) {
+			return function () {
+				var self = this;
+				var tmp = self._super;
+				var ret;
+				self._super = _super[name];
+				ret = fn.apply(self, arguments);
+				self._super = tmp;
+				return ret;
+			};
+		};
+		initializing = true;
+		prototype = new self();
+		initializing = false;
+		if (prop.Mixins) {
+			Tools.each(prop.Mixins, function (mixin) {
+				for (var name_1 in mixin) {
+					if (name_1 !== 'init') {
+						prop[name_1] = mixin[name_1];
+					}
+				}
+			});
+			if (_super.Mixins) {
+				prop.Mixins = _super.Mixins.concat(prop.Mixins);
+			}
+		}
+		if (prop.Methods) {
+			Tools.each(prop.Methods.split(','), function (name) {
+				prop[name] = dummy;
+			});
+		}
+		if (prop.Properties) {
+			Tools.each(prop.Properties.split(','), function (name) {
+				var fieldName = '_' + name;
+				prop[name] = function (value) {
+					var self = this;
+					if (value !== undefined) {
+						self[fieldName] = value;
+						return self;
+					}
+					return self[fieldName];
+				};
+			});
+		}
+		if (prop.Statics) {
+			Tools.each(prop.Statics, function (func, name) {
+				Class[name] = func;
+			});
+		}
+		if (prop.Defaults && _super.Defaults) {
+			prop.Defaults = Tools.extend({}, _super.Defaults, prop.Defaults);
+		}
+		for (name in prop) {
+			member = prop[name];
+			if (typeof member === 'function' && _super[name]) {
+				prototype[name] = createMethod(name, member);
+			} else {
+				prototype[name] = member;
+			}
+		}
+		Class.prototype = prototype;
+		Class.constructor = Class;
+		Class.extend = extendClass;
+		return Class;
+	};
+
+	var isValidPrefixAttrName = function (name) {
+		return name.indexOf('data-') === 0 || name.indexOf('aria-') === 0;
+	};
+	var trimComments = function (text) {
+		var sanitizedText = text;
+		while (/<!--|--!?>/g.test(sanitizedText)) {
+			sanitizedText = sanitizedText.replace(/<!--|--!?>/g, '');
+		}
+		return sanitizedText;
+	};
+	var isInvalidUri = function (settings, uri) {
+		if (settings.allow_html_data_urls) {
+			return false;
+		} else if (/^data:image\//i.test(uri)) {
+			return settings.allow_svg_data_urls === false && /^data:image\/svg\+xml/i.test(uri);
+		} else {
+			return /^data:/i.test(uri);
+		}
+	};
+	var findEndTagIndex = function (schema, html, startIndex) {
+		var count = 1, index, matches, tokenRegExp, shortEndedElements;
+		shortEndedElements = schema.getVoidElements();
+		tokenRegExp = /<([!?\/])?([A-Za-z0-9\-_\:\.]+)((?:\s+[^"\'>]+(?:(?:"[^"]*")|(?:\'[^\']*\')|[^>]*))*|\/|\s+)>/g;
+		tokenRegExp.lastIndex = index = startIndex;
+		while (matches = tokenRegExp.exec(html)) {
+			index = tokenRegExp.lastIndex;
+			if (matches[1] === '/') {
+				count--;
+			} else if (!matches[1]) {
+				if (matches[2] in shortEndedElements) {
+					continue;
+				}
+				count++;
+			}
+			if (count === 0) {
+				break;
+			}
+		}
+		return index;
+	};
+	var checkBogusAttribute = function (regExp, attrString) {
+		var matches = regExp.exec(attrString);
+		if (matches) {
+			var name = matches[1];
+			var value = matches[2];
+			return typeof name === 'string' && name.toLowerCase() === 'data-mce-bogus' ? value : null;
+		} else {
+			return null;
+		}
+	};
+	function SaxParser(settings, schema) {
+		if (schema === void 0) {
+			schema = tinymce.html.Schema();
+		}
+		var noop = function () {
+		};
+		settings = settings || {};
+		if (settings.fix_self_closing !== false) {
+			settings.fix_self_closing = true;
+		}
+		var comment = settings.comment ? settings.comment : noop;
+		var cdata = settings.cdata ? settings.cdata : noop;
+		var text = settings.text ? settings.text : noop;
+		var start = settings.start ? settings.start : noop;
+		var end = settings.end ? settings.end : noop;
+		var pi = settings.pi ? settings.pi : noop;
+		var doctype = settings.doctype ? settings.doctype : noop;
+		var parse = function (html) {
+			var matches, index = 0, value, endRegExp;
+			var stack = [];
+			var attrList, i, textData, name;
+			var isInternalElement, removeInternalElements, shortEndedElements, fillAttrsMap, isShortEnded;
+			var validate, elementRule, isValidElement, attr, attribsValue, validAttributesMap, validAttributePatterns;
+			var attributesRequired, attributesDefault, attributesForced, processHtml;
+			var anyAttributesRequired, selfClosing, tokenRegExp, attrRegExp, specialElements, attrValue, idCount = 0;
+			var decode = tinymce.html.Entities.decode;
+			var fixSelfClosing;
+			var filteredUrlAttrs = tinymce.util.Tools.makeMap('src,href,data,background,formaction,poster,xlink:href');
+			var scriptUriRegExp = /((java|vb)script|mhtml):/i;
+			var processEndTag = function (name) {
+				var pos, i;
+				pos = stack.length;
+				while (pos--) {
+					if (stack[pos].name === name) {
+						break;
+					}
+				}
+				if (pos >= 0) {
+					for (i = stack.length - 1; i >= pos; i--) {
+						name = stack[i];
+						if (name.valid) {
+							end(name.name);
+						}
+					}
+					stack.length = pos;
+				}
+			};
+			var parseAttribute = function (match, name, value, val2, val3) {
+				var attrRule, i;
+				var trimRegExp = /[\s\u0000-\u001F]+/g;
+				name = name.toLowerCase();
+				value = name in fillAttrsMap ? name : decode(value || val2 || val3 || '');
+				if (validate && !isInternalElement && isValidPrefixAttrName(name) === false) {
+					attrRule = validAttributesMap[name];
+					if (!attrRule && validAttributePatterns) {
+						i = validAttributePatterns.length;
+						while (i--) {
+							attrRule = validAttributePatterns[i];
+							if (attrRule.pattern.test(name)) {
+								break;
+							}
+						}
+						if (i === -1) {
+							attrRule = null;
+						}
+					}
+					if (!attrRule) {
+						return;
+					}
+					if (attrRule.validValues && !(value in attrRule.validValues)) {
+						return;
+					}
+				}
+				if (filteredUrlAttrs[name] && !settings.allow_script_urls) {
+					var uri = value.replace(trimRegExp, '');
+					try {
+						uri = decodeURIComponent(uri);
+					} catch (ex) {
+						uri = unescape(uri);
+					}
+					if (scriptUriRegExp.test(uri)) {
+						return;
+					}
+					if (isInvalidUri(settings, uri)) {
+						return;
+					}
+				}
+				if (isInternalElement && (name in filteredUrlAttrs || name.indexOf('on') === 0)) {
+					return;
+				}
+				attrList.map[name] = value;
+				attrList.push({
+					name: name,
+					value: value
+				});
+			};
+			tokenRegExp = new RegExp('<(?:' + '(?:!--([\\w\\W]*?)--!?>)|' + '(?:!\\[CDATA\\[([\\w\\W]*?)\\]\\]>)|' + '(?:!DOCTYPE([\\w\\W]*?)>)|' + '(?:\\?([^\\s\\/<>]+) ?([\\w\\W]*?)[?/]>)|' + '(?:\\/([A-Za-z][A-Za-z0-9\\-_\\:\\.]*)>)|' + '(?:([A-Za-z][A-Za-z0-9\\-_\\:\\.]*)((?:\\s+[^"\'>]+(?:(?:"[^"]*")|(?:\'[^\']*\')|[^>]*))*|\\/|\\s+)>)' + ')', 'g');
+			attrRegExp = /([\w:\-]+)(?:\s*=\s*(?:(?:\"((?:[^\"])*)\")|(?:\'((?:[^\'])*)\')|([^>\s]+)))?/g;
+			shortEndedElements = schema.getVoidElements();
+			selfClosing = settings.self_closing_elements || schema.getSelfClosingElements();
+			fillAttrsMap = schema.getBoolAttrs();
+			validate = settings.validate;
+			removeInternalElements = settings.remove_internals;
+			fixSelfClosing = settings.fix_self_closing;
+			specialElements = schema.getSpecialElements();
+			processHtml = html + '>';
+			while (matches = tokenRegExp.exec(processHtml)) {
+				if (index < matches.index) {
+					text(decode(html.substr(index, matches.index - index)));
+				}
+				if (value = matches[6]) {
+					value = value.toLowerCase();
+					if (value.charAt(0) === ':') {
+						value = value.substr(1);
+					}
+					processEndTag(value);
+				} else if (value = matches[7]) {
+					if (matches.index + matches[0].length > html.length) {
+						text(decode(html.substr(matches.index)));
+						index = matches.index + matches[0].length;
+						continue;
+					}
+					value = value.toLowerCase();
+					if (value.charAt(0) === ':') {
+						value = value.substr(1);
+					}
+					isShortEnded = value in shortEndedElements;
+					if (fixSelfClosing && selfClosing[value] && stack.length > 0 && stack[stack.length - 1].name === value) {
+						processEndTag(value);
+					}
+					var bogusValue = checkBogusAttribute(attrRegExp, matches[8]);
+					if (bogusValue !== null) {
+						if (bogusValue === 'all') {
+							index = findEndTagIndex(schema, html, tokenRegExp.lastIndex);
+							tokenRegExp.lastIndex = index;
+							continue;
+						}
+						isValidElement = false;
+					}
+					if (!validate || (elementRule = schema.getElementRule(value))) {
+						isValidElement = true;
+						if (validate) {
+							validAttributesMap = elementRule.attributes;
+							validAttributePatterns = elementRule.attributePatterns;
+						}
+						if (attribsValue = matches[8]) {
+							isInternalElement = attribsValue.indexOf('data-mce-type') !== -1;
+							if (isInternalElement && removeInternalElements) {
+								isValidElement = false;
+							}
+							attrList = [];
+							attrList.map = {};
+							attribsValue.replace(attrRegExp, parseAttribute);
+						} else {
+							attrList = [];
+							attrList.map = {};
+						}
+						if (validate && !isInternalElement) {
+							attributesRequired = elementRule.attributesRequired;
+							attributesDefault = elementRule.attributesDefault;
+							attributesForced = elementRule.attributesForced;
+							anyAttributesRequired = elementRule.removeEmptyAttrs;
+							if (anyAttributesRequired && !attrList.length) {
+								isValidElement = false;
+							}
+							if (attributesForced) {
+								i = attributesForced.length;
+								while (i--) {
+									attr = attributesForced[i];
+									name = attr.name;
+									attrValue = attr.value;
+									if (attrValue === '{$uid}') {
+										attrValue = 'mce_' + idCount++;
+									}
+									attrList.map[name] = attrValue;
+									attrList.push({
+										name: name,
+										value: attrValue
+									});
+								}
+							}
+							if (attributesDefault) {
+								i = attributesDefault.length;
+								while (i--) {
+									attr = attributesDefault[i];
+									name = attr.name;
+									if (!(name in attrList.map)) {
+										attrValue = attr.value;
+										if (attrValue === '{$uid}') {
+											attrValue = 'mce_' + idCount++;
+										}
+										attrList.map[name] = attrValue;
+										attrList.push({
+											name: name,
+											value: attrValue
+										});
+									}
+								}
+							}
+							if (attributesRequired) {
+								i = attributesRequired.length;
+								while (i--) {
+									if (attributesRequired[i] in attrList.map) {
+										break;
+									}
+								}
+								if (i === -1) {
+									isValidElement = false;
+								}
+							}
+							if (attr = attrList.map['data-mce-bogus']) {
+								if (attr === 'all') {
+									index = findEndTagIndex(schema, html, tokenRegExp.lastIndex);
+									tokenRegExp.lastIndex = index;
+									continue;
+								}
+								isValidElement = false;
+							}
+						}
+						if (isValidElement) {
+							start(value, attrList, isShortEnded);
+						}
+					} else {
+						isValidElement = false;
+					}
+					if (endRegExp = specialElements[value]) {
+						endRegExp.lastIndex = index = matches.index + matches[0].length;
+						if (matches = endRegExp.exec(html)) {
+							if (isValidElement) {
+								textData = html.substr(index, matches.index - index);
+							}
+							index = matches.index + matches[0].length;
+						} else {
+							textData = html.substr(index);
+							index = html.length;
+						}
+						if (isValidElement) {
+							if (textData.length > 0) {
+								text(textData, true);
+							}
+							end(value);
+						}
+						tokenRegExp.lastIndex = index;
+						continue;
+					}
+					if (!isShortEnded) {
+						if (!attribsValue || attribsValue.indexOf('/') !== attribsValue.length - 1) {
+							stack.push({
+								name: value,
+								valid: isValidElement
+							});
+						} else if (isValidElement) {
+							end(value);
+						}
+					}
+				} else if (value = matches[1]) {
+					if (value.charAt(0) === '>') {
+						value = ' ' + value;
+					}
+					if (!settings.allow_conditional_comments && value.substr(0, 3).toLowerCase() === '[if') {
+						value = ' ' + value;
+					}
+					comment(value);
+				} else if (value = matches[2]) {
+					cdata(trimComments(value));
+				} else if (value = matches[3]) {
+					doctype(value);
+				} else if (value = matches[4]) {
+					pi(value, matches[5]);
+				}
+				index = matches.index + matches[0].length;
+			}
+			if (index < html.length) {
+				text(decode(html.substr(index)));
+			}
+			for (i = stack.length - 1; i >= 0; i--) {
+				value = stack[i];
+				if (value.valid) {
+					end(value.name);
+				}
+			}
+		};
+		return { parse: parse };
+	}
+
+		SaxParser.findEndTag = findEndTagIndex;
+
+		function createNS( n, o ) {
+			var i, v;
+
+			o = o || window;
+			n = n.split( '.' );
+
+			for ( i = 0; i < n.length; i++ ) {
+				v = n[ i ];
+
+				if ( ! o[ v ] ) {
+					o[ v ] = {};
+				}
+
+				o = o[ v ];
+			}
+
+			return o;
+		}
+
+		// tinymce.create( 'ns.Name:ns.Parent', { Name: constructor, method: function, static: {} } ).
+		function create( s, p, root ) {
+			var sp, ns, cn, scn, c;
+			var de = 0;
+
+			s = /^((static) )?([\w.]+)(:([\w.]+))?/.exec( s );
+			cn = s[ 3 ].match( /(^|\.)(\w+)$/i )[ 2 ];
+			ns = createNS( s[ 3 ].replace( /\.\w+$/, '' ), root );
+
+			if ( ns[ cn ] ) {
+				return;
+			}
+
+			if ( s[ 2 ] === 'static' ) {
+				ns[ cn ] = p;
+				return;
+			}
+
+			if ( ! p[ cn ] ) {
+				p[ cn ] = function () {};
+				de = 1;
+			}
+
+			ns[ cn ] = p[ cn ];
+			Tools.extend( ns[ cn ].prototype, p );
+
+			if ( s[ 5 ] ) {
+				sp = Tools.resolve( s[ 5 ] ).prototype;
+				scn = s[ 5 ].match( /\.(\w+)$/i )[ 1 ];
+				c = ns[ cn ];
+
+				if ( de ) {
+					ns[ cn ] = function () {
+						return sp[ scn ].apply( this, arguments );
+					};
+				} else {
+					ns[ cn ] = function () {
+						this.parent = sp[ scn ];
+						return c.apply( this, arguments );
+					};
+				}
+
+				ns[ cn ].prototype[ cn ] = ns[ cn ];
+
+				Tools.each( sp, function ( f, n ) {
+					ns[ cn ].prototype[ n ] = sp[ n ];
+				} );
+
+				Tools.each( p, function ( f, n ) {
+					if ( sp[ n ] ) {
+						ns[ cn ].prototype[ n ] = function () {
+							this.parent = sp[ n ];
+							return f.apply( this, arguments );
+						};
+					} else if ( n !== cn ) {
+						ns[ cn ].prototype[ n ] = f;
+					}
+				} );
+			}
+
+			Tools.each( p.static, function ( f, n ) {
+				ns[ cn ][ n ] = f;
+			} );
+		}
+
+		// TinyMCE 4 defaulted to xhtml and TinyMCE 8 to html, also when these are used directly.
+		[ 'Writer', 'Serializer' ].forEach( function ( name ) {
+			var original = tinymce.html[ name ];
+
+			tinymce.html[ name ] = function ( settings ) {
+				var args = Array.prototype.slice.call( arguments );
+
+				args[ 0 ] = Tools.extend( { element_format: 'xhtml' }, settings );
+
+				return original.apply( null, args );
+			};
+		} );
+
+		define( util, 'Promise', window.Promise );
+		define( util, 'JSON', jsonHelper );
+		define( util, 'JSONP', jsonp );
+		define( util, 'XHR', xhrHelper );
+		define( util, 'JSONRequest', JSONRequest );
+		define( util, 'Class', Class );
+		define( tinymce.html, 'SaxParser', SaxParser );
+		define( tinymce.dom, 'DomQuery', $ );
+		define( tinymce.dom, 'Sizzle', $.find );
+		define( tinymce, 'create', create );
+		define( tinymce, 'createNS', createNS );
+	}
+
+	shimUtilities();
+
+	/*
+	 * TinyMCE 4 instantiated plugins with `new`, so `tinymce.create()` classes work and a plain
+	 * function can set `this.api`. TinyMCE 8 calls them without it. Arrow functions cannot be
+	 * instantiated, so they keep the TinyMCE 8 call.
+	 */
+	function shimPluginManager() {
+		var manager = tinymce.PluginManager;
+		var add = manager.add;
+
+		manager.add = function ( name, plugin, dependencies ) {
+			if ( dependencies ) {
+				warnOnce( 'plugin.dependencies', 'Plugin dependencies are not loaded by TinyMCE 8; load "' + name + '" dependencies separately.' );
+			}
+
+			if ( typeof plugin !== 'function' || ! plugin.prototype ) {
+				return add.call( manager, name, plugin );
+			}
+
+			return add.call( manager, name, function ( editor, url ) {
+				return new plugin( editor, url, editor.$ );
+			} );
+		};
+	}
+
+	shimPluginManager();
+
 	// TinyMCE 4 exposed editors as an array that was also keyed by editor ID.
 	if ( ! ( 'editors' in tinymce ) ) {
 		Object.defineProperty( tinymce, 'editors', {
