@@ -30,7 +30,7 @@ test.describe( 'Classic editor', () => {
 		await page.keyboard.type( 'Smoke test' );
 
 		await page.locator( '#content-html' ).click();
-		await expect( page.locator( '#content' ) ).toHaveValue( '<p>Smoke test</p>' );
+		await expect( page.locator( '#content' ) ).toHaveValue( 'Smoke test' );
 
 		await page.locator( '#content-tmce' ).click();
 		await expect( frame.locator( 'body' ) ).toContainText( 'Smoke test' );

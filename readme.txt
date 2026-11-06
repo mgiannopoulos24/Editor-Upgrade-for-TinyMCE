@@ -16,7 +16,7 @@ WordPress still bundles TinyMCE 4.9.11 for the classic editor, the Classic block
 
 This is an early development version. WordPress's own editor features (Add Media in the toolbar, the "More" tag, the inline link and image toolbars, embed previews) are being ported and are not available yet.
 
-Toolbar buttons that TinyMCE renamed after version 4 (`formatselect`, `styleselect`, `fontselect`, `fontsizeselect`) are mapped to their TinyMCE 8 equivalents.
+Toolbar buttons that TinyMCE renamed after version 4 (`formatselect`, `styleselect`, `fontselect`, `fontsizeselect`) are mapped to their TinyMCE 8 equivalents. Plugins that add toolbar buttons and menu items with the TinyMCE 4 API (`editor.addButton()`, `editor.addMenuItem()`) keep working through the compatibility layer.
 
 == Installation ==
 
@@ -29,3 +29,11 @@ Toolbar buttons that TinyMCE renamed after version 4 (`formatselect`, `stylesele
 * Initial development version: TinyMCE 8.10.0 replaces the bundled TinyMCE 4
 * Map TinyMCE 4 toolbar buttons (`formatselect`, `styleselect`, `fontselect`, `fontsizeselect`) to their TinyMCE 8 names
 * Fix the Classic block failing to load because core passes an empty `external_plugins` array
+* Fix void elements being saved as `<br>` instead of `<br />` by keeping the TinyMCE 4 `xhtml` element format
+* Add `editor.addButton()`, `editor.addMenuItem()`, `editor.buttons`, and `editor.menuItems` for plugins written against TinyMCE 4, including menu, list box, and split buttons
+* Make the compatibility layer available to `setup` callbacks, which run before the `AddEditor` event
+* Keep the stored post format: remove `<p>` tags on save and restore them on load, as core's `wordpress` TinyMCE plugin does
+* Keep `<script>`, `<style>`, `<b>`, and `<i>` in Visual mode, and stop adding `sandbox=""` to iframes in saved content
+* Fire the `tinymce-editor-setup` and `tinymce-editor-init` events that plugins and core listen to
+* Fix selection markers being saved in post content and an empty paragraph being added before a leading list or table
+* Fix switching to Visual failing when the content starts with an iframe

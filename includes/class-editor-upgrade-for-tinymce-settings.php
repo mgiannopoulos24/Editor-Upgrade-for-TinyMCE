@@ -67,6 +67,20 @@ class Editor_Upgrade_For_TinyMCE_Settings {
 			$settings['skin'] = 'oxide';
 		}
 
+		// TinyMCE 4 defaulted to xhtml and TinyMCE 8 to html, which would change saved void elements.
+		if ( empty( $settings['element_format'] ) ) {
+			$settings['element_format'] = 'xhtml';
+		}
+
+		// TinyMCE 8 would otherwise change iframes, objects, and embeds in saved content.
+		if ( ! isset( $settings['sandbox_iframes'] ) ) {
+			$settings['sandbox_iframes'] = false;
+		}
+
+		if ( ! isset( $settings['convert_unsafe_embeds'] ) ) {
+			$settings['convert_unsafe_embeds'] = false;
+		}
+
 		// Removed in TinyMCE 8 and no longer used by WordPress; v8 warns at init.
 		unset( $settings['tabfocus_elements'] );
 
