@@ -34,6 +34,7 @@ interface TinyMCEEditor {
 
 interface TinyMCE {
 	majorVersion: string;
+	Env: { browser: { isIE(): boolean } };
 	get( id: string ): TinyMCEEditor;
 	PluginManager: { add( name: string, plugin: () => object ): void };
 	init( settings: Record<string, unknown> & { setup?( editor: TinyMCEEditor ): void } ): Promise<TinyMCEEditor[]>;

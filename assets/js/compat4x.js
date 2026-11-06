@@ -911,6 +911,56 @@
 		shimWordPressContent( event.editor );
 	} );
 
+	/*
+	 * Browser flags removed from tinymce.Env, with TinyMCE 4's own definitions. The IE flag is always
+	 * false because TinyMCE 8 does not run on it, which core's `Env.ie && Env.ie < 11` checks allow.
+	 */
+	function shimEnv() {
+		var env = tinymce.Env;
+		var userAgent = window.navigator.userAgent;
+		var isWebKit = /WebKit/.test( userAgent );
+		var isGecko = ! isWebKit && /Gecko/.test( userAgent );
+		var isMac = userAgent.indexOf( 'Mac' ) !== -1;
+		var flags = {
+			android: /Android/.test( userAgent ),
+			caretAfter: true,
+			ceFalse: true,
+			contentEditable: true,
+			desktop: env.deviceType.isDesktop(),
+			experimentalShadowDom: false,
+			fileApi: true,
+			gecko: isGecko,
+			ie: false,
+			iOS: /(iPad|iPhone)/.test( userAgent ),
+			mac: isMac,
+			opera: false,
+			overrideViewPort: null,
+			range: true,
+			webkit: isWebKit,
+		};
+		var globals = {
+			isGecko: isGecko,
+			isIE: false,
+			isMac: isMac,
+			isOpera: false,
+			isWebKit: isWebKit,
+		};
+
+		Object.keys( flags ).forEach( function ( name ) {
+			if ( ! ( name in env ) ) {
+				env[ name ] = flags[ name ];
+			}
+		} );
+
+		Object.keys( globals ).forEach( function ( name ) {
+			if ( ! ( name in tinymce ) ) {
+				tinymce[ name ] = globals[ name ];
+			}
+		} );
+	}
+
+	shimEnv();
+
 	// TinyMCE 4 exposed editors as an array that was also keyed by editor ID.
 	if ( ! ( 'editors' in tinymce ) ) {
 		Object.defineProperty( tinymce, 'editors', {
