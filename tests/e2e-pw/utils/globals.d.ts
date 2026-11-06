@@ -27,6 +27,7 @@ interface TinyMCEEditor {
 	getContent(): string;
 	setContent( content: string ): void;
 	save(): string;
+	initialized: boolean;
 	focus(): void;
 	execCommand( command: string ): void;
 	nodeChanged(): void;
@@ -34,6 +35,7 @@ interface TinyMCEEditor {
 
 interface TinyMCE {
 	majorVersion: string;
+	activeEditor: TinyMCEEditor;
 	Env: { browser: { isIE(): boolean } };
 	get( id: string ): TinyMCEEditor;
 	PluginManager: { add( name: string, plugin: () => object ): void };
@@ -41,10 +43,15 @@ interface TinyMCE {
 }
 
 interface Window {
+	wp: {
+		data: { dispatch( store: string ): { insertBlocks( block: unknown ): void } };
+		blocks: { createBlock( name: string ): unknown };
+	};
 	jQuery( target: Document ): {
 		on( events: string, handler: ( event: { type: string }, editor: { id: string } ) => void ): void;
 	};
 	tinymce: TinyMCE;
 	compat4xLog: string[];
+	dialogProbe(): Promise<string[]>;
 	compat4xControl: TinyMCEV4Control;
 }

@@ -297,7 +297,17 @@
 			},
 			fire: function ( name, event ) {
 				var lowerName = name.toLowerCase();
-				var args = $.extend( { control: control, type: lowerName }, event );
+				var prevented = false;
+				var args = $.extend( {
+					control: control,
+					type: lowerName,
+					preventDefault: function () {
+						prevented = true;
+					},
+					isDefaultPrevented: function () {
+						return prevented;
+					},
+				}, event );
 				var handler = getHandler( settings, lowerName );
 
 				if ( handler ) {
@@ -308,7 +318,7 @@
 					listener.call( control, args );
 				} );
 
-				return control;
+				return args;
 			},
 			// Only toolbar items have a stable element in TinyMCE 8; menu items are rebuilt on open.
 			getEl: function () {
@@ -733,6 +743,574 @@
 		}
 	}
 
+	function toArray( value ) {
+		if ( ! value ) {
+			return [];
+		}
+
+		return Array.isArray( value ) ? value : [ value ];
+	}
+
+	function addCollectionMethods( items ) {
+		function each( method ) {
+			return function () {
+				var args = arguments;
+
+				items.forEach( function ( item ) {
+					item[ method ].apply( item, args );
+				} );
+
+				return items;
+			};
+		}
+
+		// Called without arguments, value() and text() read the first item, as in TinyMCE 4.
+		function accessor( method ) {
+			var write = each( method );
+
+			return function () {
+				if ( arguments.length ) {
+					return write.apply( null, arguments );
+				}
+
+				return items[ 0 ] ? items[ 0 ][ method ]() : undefined;
+			};
+		}
+
+		items.each = function ( callback ) {
+			items.forEach( function ( item, index ) {
+				callback.call( item, index, item );
+			} );
+			return items;
+		};
+		items.value = accessor( 'value' );
+		items.text = accessor( 'text' );
+		items.disabled = accessor( 'disabled' );
+		items.visible = accessor( 'visible' );
+		items.show = each( 'show' );
+		items.hide = each( 'hide' );
+
+		return items;
+	}
+
+	/*
+	 * Each v4 field type: its TinyMCE 8 type and how its value converts. TinyMCE 8 list boxes only
+	 * take strings and URL inputs take an object, while v4 handlers expect the original values.
+	 */
+	var DIALOG_FIELDS = {
+		textbox: { type: 'input' },
+		colorbox: { type: 'colorinput' },
+		colorpicker: { type: 'colorinput' },
+		checkbox: { type: 'checkbox', empty: false },
+		listbox: { type: 'listbox' },
+		selectbox: { type: 'listbox' },
+		combobox: { type: 'input' },
+		filepicker: {
+			type: 'urlinput',
+			toDialog: function ( value ) {
+				return { value: value };
+			},
+			fromDialog: function ( value ) {
+				return value ? value.value : '';
+			},
+		},
+	};
+
+	var DIALOG_LAYOUTS = [ 'container', 'panel', 'form', 'fieldset', 'formitem' ];
+
+	/*
+	 * editor.windowManager.open() with a TinyMCE 4 spec: `body` or `items` as a list of v4 controls,
+	 * `buttons`, `onsubmit`, or a `url`. The returned object stands in for the v4 window. The window
+	 * manager is created during render, so this runs after `setup` callbacks.
+	 */
+	function shimWindowManager( editor ) {
+		var manager = editor.windowManager;
+		var openDialog = manager.open;
+		var openUrlDialog = manager.openUrl;
+		var windows = [];
+		var counter = 0;
+
+		function createHost( name ) {
+			return { editor: editor, name: name, resolveIconName: String };
+		}
+
+		function isV8Spec( args ) {
+			return !! args && !! args.body && ! Array.isArray( args.body ) &&
+				( 'panel' === args.body.type || 'tabpanel' === args.body.type );
+		}
+
+		function openV4( args, params ) {
+			var api = null;
+			var data = args.data || {};
+			var controls = [];
+			var actions = {};
+			var win = createControl( args, createHost() );
+			var isOpen = true;
+
+			function addControl( item, type, name, field, initial ) {
+				var control = createControl( item, createHost( name ) );
+				var value = initial;
+				var isDisabled = !! item.disabled;
+
+				control.type = type;
+				control.isNamed = !! item.name;
+				control.rootControl = win;
+				control.parent = function () {
+					return win;
+				};
+				control.parents = function () {
+					return addCollectionMethods( [ win ] );
+				};
+				control.focus = function () {
+					api.focus( name );
+					return control;
+				};
+				control.value = function ( newValue ) {
+					var current;
+
+					if ( arguments.length ) {
+						var update = {};
+
+						value = newValue;
+
+						if ( api && field ) {
+							update[ name ] = control.toDialog( newValue );
+							api.setData( update );
+						}
+
+						return control;
+					}
+
+					if ( ! api || ! field ) {
+						return value;
+					}
+
+					current = api.getData()[ name ];
+
+					return field.fromDialog ? field.fromDialog( current ) : control.restoreValue( current );
+				};
+				control.disabled = function ( state ) {
+					if ( ! arguments.length ) {
+						return isDisabled;
+					}
+
+					isDisabled = !! state;
+
+					if ( api ) {
+						api.setEnabled( name, ! isDisabled );
+					}
+
+					return control;
+				};
+				control.visible = function () {
+					warnOnce( 'dialog.visible', 'Hiding a dialog field with visible() is not available in TinyMCE 8.' );
+					return true;
+				};
+				control.toDialog = function ( newValue ) {
+					return field && field.toDialog ? field.toDialog( newValue ) : newValue;
+				};
+				control.restoreValue = function ( current ) {
+					return current;
+				};
+
+				controls.push( control );
+
+				return control;
+			}
+
+			function createHtmlPanel( html, classes ) {
+				var names = classes ? String( classes ).split( /\s+/ ).map( function ( name ) {
+					return 'mce-' + name;
+				} ).join( ' ' ) : '';
+
+				return {
+					type: 'htmlpanel',
+					html: names ? '<div class="' + tinymce.DOM.encode( names ) + '">' + html + '</div>' : html,
+				};
+			}
+
+			function createListItems( items, values ) {
+				return items.map( function ( item ) {
+					var menu = item.menu || item.items;
+
+					if ( menu ) {
+						return { text: item.text, items: createListItems( menu, values ) };
+					}
+
+					values[ String( item.value ) ] = item.value;
+
+					return { text: item.text, value: String( item.value ) };
+				} );
+			}
+
+			function firstListValue( items ) {
+				var first = items[ 0 ];
+
+				if ( ! first ) {
+					return '';
+				}
+
+				return first.menu || first.items ? firstListValue( first.menu || first.items ) : first.value;
+			}
+
+			function createField( item, type, initialData ) {
+				var field = DIALOG_FIELDS[ type ];
+				var name = item.name || 'compat4x_field_' + ( ++counter );
+				var items = item.values || item.menu || [];
+				var initial = data[ item.name ];
+				var values = {};
+				var control;
+				var spec;
+
+				if ( undefined === initial ) {
+					initial = 'checkbox' === type ? item.checked : item.value;
+				}
+
+				if ( undefined === initial ) {
+					if ( 'input' === field.type || 'colorinput' === field.type || 'urlinput' === field.type ) {
+						initial = '';
+					} else if ( 'listbox' === field.type ) {
+						initial = firstListValue( items );
+					} else {
+						initial = field.empty;
+					}
+				}
+
+				control = addControl( item, type, name, field, initial );
+				spec = { type: field.type, name: name, enabled: ! item.disabled };
+
+				if ( 'checkbox' === field.type ) {
+					spec.label = item.text || item.label || '';
+				} else {
+					spec.label = item.label;
+				}
+
+				if ( 'input' === field.type && item.multiline ) {
+					spec.type = 'textarea';
+				}
+
+				if ( 'input' === field.type || 'textarea' === spec.type ) {
+					spec.placeholder = item.placeholder;
+				}
+
+				if ( 'urlinput' === field.type ) {
+					spec.filetype = item.filetype || 'file';
+				}
+
+				if ( 'listbox' === field.type ) {
+					spec.items = createListItems( items, values );
+					control.toDialog = String;
+					control.restoreValue = function ( current ) {
+						return current in values ? values[ current ] : current;
+					};
+				}
+
+				initialData[ name ] = control.toDialog( initial );
+
+				return spec;
+			}
+
+			function createItem( item, initialData ) {
+				var type = item.type;
+				var name;
+
+				if ( DIALOG_FIELDS[ type ] ) {
+					return createField( item, type, initialData );
+				}
+
+				if ( 'label' === type ) {
+					addControl( item, type, item.name || 'compat4x_field_' + ( ++counter ), null, '' );
+					return createHtmlPanel( item.html || tinymce.DOM.encode( tinymce.translate( item.text || '' ) ), item.classes );
+				}
+
+				if ( 'button' === type ) {
+					name = item.name || 'compat4x_field_' + ( ++counter );
+					actions[ name ] = addControl( item, type, name, null, '' );
+
+					return {
+						type: 'button',
+						name: name,
+						text: item.text || '',
+						buttonType: 'primary' === item.subtype ? 'primary' : 'secondary',
+						enabled: ! item.disabled,
+					};
+				}
+
+				if ( DIALOG_LAYOUTS.indexOf( type ) > -1 ) {
+					return createLayout( item, initialData );
+				}
+
+				if ( 'spacer' !== type ) {
+					warnOnce( 'dialog.' + type, 'Dialog control "' + type + '" is not available in TinyMCE 8 and was skipped.' );
+				}
+
+				return null;
+			}
+
+			function createItems( items, initialData ) {
+				return toArray( items ).map( function ( item ) {
+					return createItem( item, initialData );
+				} ).filter( Boolean );
+			}
+
+			function createLayout( item, initialData ) {
+				var items;
+
+				if ( item.html ) {
+					return createHtmlPanel( item.html, item.classes );
+				}
+
+				items = createItems( item.items, initialData );
+
+				if ( 'fieldset' === item.type && item.label ) {
+					items.unshift( createHtmlPanel( '<strong>' + tinymce.DOM.encode( tinymce.translate( item.label ) ) + '</strong>' ) );
+				}
+
+				return { type: 'panel', items: items };
+			}
+
+			function createBody( initialData ) {
+				var items = args.body || args.items;
+
+				if ( 'tabpanel' === args.bodyType || ( items && 'tabpanel' === items.type ) ) {
+					return {
+						type: 'tabpanel',
+						tabs: toArray( args.body || items.items ).map( function ( tab ) {
+							return {
+								title: tab.title || '',
+								name: 'compat4x_tab_' + ( ++counter ),
+								items: createItems( tab.items, initialData ),
+							};
+						} ),
+					};
+				}
+
+				return { type: 'panel', items: createItems( items, initialData ) };
+			}
+
+			function createButtons( isUrl ) {
+				var buttons = toArray( args.buttons );
+
+				if ( ! buttons.length && ! isUrl ) {
+					buttons = [
+						{ text: 'Ok', subtype: 'primary', onclick: 'submit' },
+						{ text: 'Cancel', onclick: 'close' },
+					];
+				}
+
+				return buttons.map( function ( button ) {
+					var name = 'compat4x_button_' + ( ++counter );
+					var isPrimary = 'primary' === button.subtype;
+
+					if ( 'submit' === button.onclick && ! isUrl ) {
+						return { type: 'submit', name: name, text: button.text, primary: isPrimary };
+					}
+
+					actions[ name ] = button;
+
+					return { type: 'custom', name: name, text: button.text, primary: isPrimary };
+				} );
+			}
+
+			function runAction( name ) {
+				var action = actions[ name ];
+				var onclick;
+
+				if ( ! action ) {
+					return;
+				}
+
+				if ( action.fire ) {
+					action.fire( 'click' );
+					return;
+				}
+
+				onclick = action.onclick || action.onClick;
+
+				if ( 'close' === onclick ) {
+					win.close();
+				} else if ( 'submit' === onclick ) {
+					win.submit();
+				} else if ( typeof onclick === 'function' ) {
+					onclick.call( win, { control: win, type: 'click' } );
+				}
+			}
+
+			function handleClose() {
+				if ( ! isOpen ) {
+					return;
+				}
+
+				isOpen = false;
+				windows.splice( windows.indexOf( win ), 1 );
+				win.fire( 'close' );
+			}
+
+			function handleChange( dialogApi, details ) {
+				var changed = controls.filter( function ( control ) {
+					return control.name() === details.name;
+				} )[ 0 ];
+
+				if ( changed ) {
+					[ 'change', 'input', 'keyup', 'select' ].forEach( function ( name ) {
+						changed.fire( name );
+					} );
+				}
+
+				win.fire( 'change', { control: changed } );
+			}
+
+			win.params = params || {};
+			win.features = args;
+			win.close = function () {
+				if ( api ) {
+					api.close();
+				}
+
+				return win;
+			};
+			win.submit = function () {
+				var event = win.fire( 'submit', { data: win.toJSON() } );
+
+				if ( ! event.isDefaultPrevented() ) {
+					win.close();
+				}
+
+				return event;
+			};
+			win.toJSON = function () {
+				var result = {};
+
+				controls.forEach( function ( control ) {
+					if ( control.isNamed ) {
+						result[ control.name() ] = control.value();
+					}
+				} );
+
+				return result;
+			};
+			win.fromJSON = function ( values ) {
+				controls.forEach( function ( control ) {
+					if ( control.isNamed && control.name() in values ) {
+						control.value( values[ control.name() ] );
+					}
+				} );
+
+				return win;
+			};
+			win.find = function ( selector ) {
+				var name = String( selector );
+
+				// `win.find( 'form' )[ 0 ].submit()` is how v4 buttons submitted a dialog.
+				if ( 'form' === name ) {
+					return addCollectionMethods( [ win ] );
+				}
+
+				return addCollectionMethods( controls.filter( function ( control ) {
+					if ( '*' === name ) {
+						return true;
+					}
+
+					return '#' === name.charAt( 0 ) ? control.name() === name.slice( 1 ) : control.type === name;
+				} ) );
+			};
+			win.getEl = function () {
+				var dialogs = document.querySelectorAll( '.tox-dialog' );
+
+				return dialogs[ dialogs.length - 1 ] || null;
+			};
+			win.getContentWindow = function () {
+				var element = win.getEl();
+				var iframe = element && element.querySelector( 'iframe' );
+
+				return iframe ? iframe.contentWindow : null;
+			};
+			win.focus = function () {
+				return win;
+			};
+			[ 'reflow', 'repaint', 'fit', 'moveTo', 'resizeTo', 'resizeBy' ].forEach( function ( name ) {
+				win[ name ] = function () {
+					return win;
+				};
+			} );
+			Object.defineProperty( win, '$el', {
+				get: function () {
+					return $( win.getEl() );
+				},
+			} );
+
+			function open() {
+				var url = args.url || args.file;
+				var width = parseInt( args.width, 10 );
+				var initialData = {};
+				var common = {
+					title: args.title || ' ',
+					onCancel: function () {
+						win.fire( 'cancel' );
+					},
+					onClose: handleClose,
+					onAction: function ( dialogApi, details ) {
+						runAction( details.name );
+					},
+				};
+
+				if ( url ) {
+					return openUrlDialog.call( manager, $.extend( common, {
+						url: url,
+						width: width || 320,
+						height: parseInt( args.height, 10 ) || 240,
+						buttons: createButtons( true ),
+					} ) );
+				}
+
+				common.body = createBody( initialData );
+				common.buttons = createButtons( false );
+				common.initialData = initialData;
+				common.size = width >= 800 ? 'large' : ( width >= 500 ? 'medium' : 'normal' );
+				common.onChange = handleChange;
+				common.onSubmit = function () {
+					win.submit();
+				};
+
+				return openDialog.call( manager, common );
+			}
+
+			api = open();
+			windows.push( win );
+			win.fire( 'postrender' );
+
+			return win;
+		}
+
+		manager.open = function ( args, params ) {
+			if ( isV8Spec( args ) ) {
+				return openDialog.apply( manager, arguments );
+			}
+
+			warnOnce( 'windowManager.open', 'editor.windowManager.open() with a TinyMCE 4 dialog is deprecated; use the TinyMCE 8 dialog format.' );
+
+			return openV4( args || {}, params );
+		};
+
+		manager.getWindows = function () {
+			return windows;
+		};
+
+		manager.getParams = function () {
+			var top = windows[ windows.length - 1 ];
+
+			return top ? top.params : {};
+		};
+
+		manager.setParams = function ( params ) {
+			var top = windows[ windows.length - 1 ];
+
+			if ( top ) {
+				top.params = params;
+			}
+		};
+	}
+
 	/*
 	 * Handlers change `event.content` on SaveContent, but editor.save() in TinyMCE 8 reads its own
 	 * arguments while dispatch() hands handlers a copy, so those changes would be lost.
@@ -907,6 +1485,9 @@
 		shimThemeResize( event.editor );
 		shimBookmarks( event.editor );
 		shimUi( event.editor );
+		event.editor.on( 'ScriptsLoaded', function () {
+			shimWindowManager( event.editor );
+		} );
 		shimSaveContentEvent( event.editor );
 		shimWordPressContent( event.editor );
 	} );

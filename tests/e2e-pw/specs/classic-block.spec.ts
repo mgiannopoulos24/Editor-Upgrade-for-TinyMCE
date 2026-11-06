@@ -30,17 +30,18 @@ test.describe( 'Classic block', () => {
 		await canvas.locator( 'body.block-editor-iframe__body' ).waitFor( { timeout: 30_000 } );
 		await dismissWelcomeGuide( page );
 
-		await page.getByRole( 'button', { name: 'Block Inserter' } ).first().click();
-		await page.locator( '.block-editor-inserter__search input[type="search"]' ).fill( 'Classic' );
-		await page.locator( '.block-editor-block-types-list__item', { hasText: 'Classic' } ).first().click();
+		// The inserter UI is not under test, and its search results are slow to settle in Firefox.
+		await page.evaluate( () => {
+			window.wp.data.dispatch( 'core/block-editor' ).insertBlocks( window.wp.blocks.createBlock( 'core/freeform' ) );
+		} );
 		await canvas.getByRole( 'button', { name: 'Edit contents' } ).click();
 
 		const editor = page.locator( '.tox-tinymce' );
 		await expect( editor ).toBeVisible();
 		await expect( editor ).toHaveCSS( 'border-top-left-radius', '0px' );
 
-		const frame = page.frameLocator( '.tox-edit-area iframe' );
-		await frame.locator( 'body' ).click();
+		// Firefox can drop keys typed right after a click in the iframe, with TinyMCE 4 as well.
+		await page.evaluate( () => window.tinymce.activeEditor.focus() );
 		await page.keyboard.type( 'Classic block smoke test.' );
 
 		await page.getByRole( 'button', { name: 'Save', exact: true } ).last().click();

@@ -43,3 +43,4 @@ Toolbar buttons that TinyMCE renamed after version 4 (`formatselect`, `stylesele
 * Load plugins registered with `PluginManager.add()` from the `plugins` setting
 * Square the editor frame so its corners no longer leave gaps inside the WordPress frame
 * Restore the `tinymce.Env` browser flags (`ie`, `iOS`, `mac`, `webkit`, `gecko`, ...) and `tinymce.isIE`, `isWebKit`, `isGecko`, `isMac`, `isOpera`
+* Translate TinyMCE 4 dialogs passed to `editor.windowManager.open()`, including form fields, tabs, URL dialogs, `getParams()`, and `getWindows()`
