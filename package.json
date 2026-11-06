@@ -13,6 +13,7 @@
     "lint:fix": "./vendor/bin/phpcbf --standard=phpcs.xml --extensions=php .",
     "test:e2e:install": "bunx playwright install chromium",
     "test:e2e": "bunx playwright test --config tests/e2e-pw/playwright.config.ts --project=desktop",
+    "test:compat:record": "COMPAT_RECORD=1 bunx playwright test --config tests/e2e-pw/playwright.config.ts --project=desktop compat-fixtures",
     "test:e2e:browsers": "bunx playwright test --config tests/e2e-pw/playwright.config.ts --project=firefox --project=webkit",
     "test:e2e:report": "bunx playwright show-report tests/e2e-pw/playwright-report",
     "i18n:make-pot": "wp-env run cli -- wp i18n make-pot wp-content/plugins/editor-upgrade-for-tinymce wp-content/plugins/editor-upgrade-for-tinymce/languages/editor-upgrade-for-tinymce.pot --slug=editor-upgrade-for-tinymce --domain=editor-upgrade-for-tinymce --exclude=node_modules,vendor,.git,languages,tests,docs,assets/vendor",

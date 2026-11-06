@@ -63,6 +63,8 @@ interface Window {
 	};
 	tinymce: TinyMCE;
 	compat4xLog: string[];
+	compatResults: Record<string, unknown>;
+	compatClicks: Record<string, string[] | undefined>;
 	dialogProbe(): Promise<string[]>;
 	utilProbe( echoUrl: string ): Promise<string[]>;
 	uiProbe(): string[];

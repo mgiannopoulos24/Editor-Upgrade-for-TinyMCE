@@ -1,0 +1,216 @@
+{
+	"button_cmd": {
+		"ran": true
+	},
+	"button_icon": {
+		"defaultIcon": "compat_button_icon",
+		"tooltip": "Fixture icon",
+		"image": "/wp-includes/images/w-logo-blue.png"
+	},
+	"button_listbox": {
+		"value": 1,
+		"hasControl": true
+	},
+	"button_menu": {
+		"clicked": "first",
+		"menuSize": 2
+	},
+	"button_onclick": {
+		"thisHasActive": true,
+		"eventControlIsThis": true,
+		"settingsText": "Fixture onclick"
+	},
+	"button_postrender": {
+		"disabled": true,
+		"enabledAgain": false,
+		"active": true,
+		"text": "Fixture render"
+	},
+	"button_split": {
+		"type": "splitbutton",
+		"menuSize": 1
+	},
+	"button_state": {
+		"inStrong": true,
+		"outside": false
+	},
+	"buttons_object": {
+		"read": "Fixture object",
+		"written": "Written",
+		"core": true,
+		"missing": "undefined",
+		"listed": true
+	},
+	"class_extend": {
+		"who": "child-base1",
+		"isBase": true,
+		"color": "red",
+		"statics": "static",
+		"createNS": "function",
+		"domQuery": "function",
+		"sizzle": "function"
+	},
+	"commands": {
+		"before": true,
+		"after": false,
+		"value": "value:false",
+		"supported": true
+	},
+	"create_class": {
+		"isInstance": true,
+		"registered": true,
+		"info": "Fixture class",
+		"button": "Fixture class",
+		"urlIsString": "string"
+	},
+	"dom_query": {
+		"count": 2,
+		"firstClass": "a b",
+		"text": "y",
+		"global": "function",
+		"globalCount": 1
+	},
+	"editors_list": {
+		"first": "content",
+		"keyed": "content",
+		"isArrayLike": "number",
+		"get": true,
+		"active": true,
+		"util": "function"
+	},
+	"env_flags": {
+		"ie": false,
+		"opera": false,
+		"iOS": false,
+		"android": false,
+		"range": true,
+		"ceFalse": true,
+		"fileApi": true,
+		"transparent": "string",
+		"webkit": "boolean",
+		"gecko": "boolean",
+		"mac": "boolean",
+		"isIE": false,
+		"isOpera": false,
+		"isWebKit": "boolean",
+		"isGecko": "boolean",
+		"isMac": "boolean"
+	},
+	"events_content": {
+		"custom": 1,
+		"content": "<p>changed-before</p><p>changed-after</p>",
+		"saved": "changed-before\n\nchanged-after<!-- saved -->"
+	},
+	"formatter": {
+		"applied": "<p><span class=\"compat\">x</span></p>",
+		"matched": true,
+		"removed": "<p>x</p>"
+	},
+	"json_request": {
+		"error": "JSON Parse error.",
+		"hasXhr": true
+	},
+	"menu_item": {
+		"text": "Fixture menu item",
+		"context": "tools",
+		"cmd": "compatMenuCmd"
+	},
+	"plugin_this": {
+		"sameInstance": true,
+		"marker": "instance",
+		"info": "Fixture",
+		"hasDollarArg": "function",
+		"urlIsString": "string"
+	},
+	"sax_parser": {
+		"events": [
+			"start:p::false",
+			"text:a",
+			"comment: c ",
+			"start:a:/x:false",
+			"text:b & c",
+			"end:a",
+			"start:br::true",
+			"end:p"
+		],
+		"written": "<img src=\"/a.png\" />"
+	},
+	"selection": {
+		"text": "abc",
+		"bookmark": "object",
+		"node": "BODY",
+		"content": "<p><em>new</em></p>",
+		"insert": "function"
+	},
+	"settings_object": {
+		"encoding": "raw",
+		"wpautop": true,
+		"custom": "set",
+		"missing": "undefined",
+		"getParam": "raw",
+		"getParamDefault": "fallback"
+	},
+	"theme_ui": {
+		"resizeTo": "function",
+		"notification": 1,
+		"closed": 0,
+		"container": true,
+		"area": true,
+		"doc": true,
+		"win": true,
+		"body": "BODY"
+	},
+	"ui_factory": {
+		"label": "preview:1",
+		"marker": "init",
+		"name": "n",
+		"isControl": true,
+		"has": true,
+		"missing": "Could not find control by type: compatnope",
+		"hideAll": "function",
+		"zIndex": 100100
+	},
+	"util_json": {
+		"promise": 2,
+		"serialized": "{\"a\":[1,\"x\"],\"b\":null}",
+		"parsed": 3,
+		"invalid": "undefined",
+		"jsonp": "function"
+	},
+	"util_xhr": {
+		"text": "WordPress",
+		"status": 200
+	},
+	"window_form": {
+		"before": {
+			"a": "from data",
+			"b": 1,
+			"c": true
+		},
+		"params": {
+			"param": 1
+		},
+		"submitted": {
+			"a": "changed",
+			"b": 1,
+			"c": true
+		},
+		"open": 0
+	},
+	"window_url": {
+		"params": {
+			"from": "fixture"
+		},
+		"openWhileShown": 1,
+		"closed": true,
+		"openAfter": 0,
+		"alert": "function",
+		"confirm": "function"
+	},
+	"wp_events": {
+		"editorInit": true,
+		"wpEditor": "function",
+		"activeEditor": "content",
+		"preInit": "object"
+	}
+}

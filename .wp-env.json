@@ -10,7 +10,8 @@
 	],
 	"mappings": {
 		"wp-content/plugins/editor-upgrade-for-tinymce": ".",
-		"wp-content/mu-plugins/editor-surfaces.php": "./tests/e2e-pw/mu-plugins/editor-surfaces.php"
+		"wp-content/mu-plugins/editor-surfaces.php": "./tests/e2e-pw/mu-plugins/editor-surfaces.php",
+		"wp-content/mu-plugins/compat-fixtures.php": "./tests/compat/compat-fixtures.php"
 	},
 	"port": 8888,
 	"testsEnvironment": false,
