@@ -343,6 +343,10 @@
 			getEl: function () {
 				var container = host.editor.getContainer();
 
+				if ( ! host.name ) {
+					warnOnce( 'control.getEl', 'control.getEl() only works for toolbar buttons in TinyMCE 8.' );
+				}
+
 				return host.name && container ?
 					container.querySelector( '[data-mce-name="' + host.name.toLowerCase() + '"]' ) :
 					null;
@@ -1286,6 +1290,11 @@
 				common.buttons = createButtons( false );
 				common.initialData = initialData;
 				common.size = width >= 800 ? 'large' : ( width >= 500 ? 'medium' : 'normal' );
+
+				if ( args.width || args.height ) {
+					warnOnce( 'dialog.size', 'TinyMCE 8 dialogs size to their content: width only picks normal, medium, or large, and height is ignored.' );
+				}
+
 				common.onChange = handleChange;
 				common.onSubmit = function () {
 					win.submit();
@@ -1310,6 +1319,17 @@
 
 			return openV4( args || {}, params );
 		};
+
+		manager.windows = windows;
+		manager.editor = editor;
+		manager.onOpen = new Dispatcher();
+		manager.onClose = new Dispatcher();
+		manager.createInstance = function ( className, a, b, c, d, e ) {
+			var Constructor = tinymce.resolve( className );
+
+			return new Constructor( a, b, c, d, e );
+		};
+		warnIfRead( manager, 'parent', 'editor.windowManager.parent', 'Dialogs have no parent window object in TinyMCE 8.' );
 
 		manager.getWindows = function () {
 			return windows;
@@ -1497,6 +1517,238 @@
 		} );
 	}
 
+	/*
+	 * Editor methods and TinyMCE 3 events that TinyMCE 8 removed. controlManager only keeps the calls
+	 * of old plugins from failing; it cannot create controls.
+	 */
+	function shimEditorApi( editor ) {
+		var contextCount = 0;
+
+		function addEvents( names, argsMap ) {
+			names.split( ' ' ).forEach( function ( name ) {
+				editor[ 'on' + name ] = new Dispatcher( editor, name, argsMap );
+			} );
+		}
+
+		function undoArgs( type, event, target ) {
+			return [ event.level, target ];
+		}
+
+		function selectionFilter( needsSelection ) {
+			return function ( type, event ) {
+				if ( ( ! event.selection && ! needsSelection ) || event.selection === needsSelection ) {
+					return [ event ];
+				}
+			};
+		}
+
+		function inertControl() {
+			var control = {};
+
+			warnOnce( 'controlManager', 'editor.controlManager cannot create controls in TinyMCE 8; use editor.ui.registry.' );
+
+			'add addMenu addSeparator collapse createMenu destroy displayColor expand focus getLength hasMenus hideMenu isActive isCollapsed isDisabled isRendered isSelected mark postRender remove removeAll renderHTML renderMenu renderNode renderTo select selectByIndex setActive setAriaProperty setColor setDisabled setSelected setState showMenu update'.split( ' ' ).forEach( function ( method ) {
+				control[ method ] = inertControl;
+			} );
+
+			return control;
+		}
+
+		function noop() {}
+
+		addEvents( 'PreInit BeforeRenderUI PostRender Load Init Remove Activate Deactivate', 'editor' );
+		addEvents( 'Click MouseUp MouseDown DblClick KeyDown KeyUp KeyPress ContextMenu Paste Submit Reset' );
+		addEvents( 'BeforeExecCommand ExecCommand', 'command ui value args' );
+		addEvents( 'PreProcess PostProcess LoadContent SaveContent Change' );
+		addEvents( 'BeforeSetContent BeforeGetContent SetContent GetContent', selectionFilter( false ) );
+		addEvents( 'SetProgressState', 'state time' );
+		addEvents( 'VisualAid', 'element hasVisual' );
+		addEvents( 'Undo Redo', undoArgs );
+		addEvents( 'NodeChange', function ( type, event ) {
+			return [ editor.controlManager, event.element, editor.selection.isCollapsed(), event ];
+		} );
+
+		editor.controlManager = {
+			buttons: {},
+			setDisabled: function ( name, state ) {
+				var button = this.buttons[ name ];
+
+				if ( button ) {
+					button.disabled( state );
+				}
+			},
+			setActive: function ( name, state ) {
+				var button = this.buttons[ name ];
+
+				if ( button ) {
+					button.active( state );
+				}
+			},
+			onAdd: new Dispatcher(),
+			onPostRender: new Dispatcher(),
+			add: function ( control ) {
+				return control;
+			},
+			createButton: inertControl,
+			createColorSplitButton: inertControl,
+			createControl: inertControl,
+			createDropMenu: inertControl,
+			createListBox: inertControl,
+			createMenuButton: inertControl,
+			createSeparator: inertControl,
+			createSplitButton: inertControl,
+			createToolbar: inertControl,
+			createToolbarGroup: inertControl,
+			destroy: noop,
+			get: noop,
+			setControlType: inertControl,
+		};
+
+		editor.setMode = editor.setMode || function ( mode ) {
+			editor.mode.set( mode );
+		};
+
+		// v4 stored translations per language, with `name` as a key such as `plugin.title`.
+		editor.getLang = editor.getLang || function ( name, fallback ) {
+			var translated = tinymce.translate( name );
+
+			if ( translated !== name ) {
+				return translated;
+			}
+
+			return undefined !== fallback ? fallback : '{#' + name + '}';
+		};
+
+		editor.execCallback = editor.execCallback || function ( name ) {
+			var callback = editor.settings[ name ];
+			var scope;
+
+			if ( ! callback ) {
+				return undefined;
+			}
+
+			if ( typeof callback === 'string' ) {
+				scope = callback.replace( /\.\w+$/, '' );
+				scope = scope ? tinymce.resolve( scope ) : 0;
+				callback = tinymce.resolve( callback );
+			}
+
+			return callback.apply( scope || editor, Array.prototype.slice.call( arguments, 1 ) );
+		};
+
+		editor.addContextToolbar = editor.addContextToolbar || function ( predicate, items ) {
+			var selector = predicate;
+
+			editor.ui.registry.addContextToolbar( 'compat4x_context_' + ( ++contextCount ), {
+				predicate: typeof predicate === 'string' ? function ( element ) {
+					return editor.dom.is( element, selector );
+				} : predicate,
+				items: Array.isArray( items ) ? items.join( ' ' ) : items,
+				position: 'node',
+				scope: 'node',
+			} );
+		};
+
+		editor.addSidebar = editor.addSidebar || function ( name, settings ) {
+			var rendered = false;
+
+			function eventFor( api ) {
+				return { element: api.element.bind( api ), api: api };
+			}
+
+			editor.ui.registry.addSidebar( name, {
+				tooltip: settings.tooltip,
+				icon: settings.icon,
+				onShow: function ( api ) {
+					var handler = getHandler( settings, 'render' );
+
+					if ( ! rendered && handler ) {
+						handler( eventFor( api ) );
+					}
+
+					rendered = true;
+					handler = getHandler( settings, 'show' );
+
+					if ( handler ) {
+						handler( eventFor( api ) );
+					}
+				},
+				onHide: function ( api ) {
+					var handler = getHandler( settings, 'hide' );
+
+					if ( handler ) {
+						handler( eventFor( api ) );
+					}
+				},
+			} );
+		};
+
+		[
+			[ 'rtl', function () {
+				return tinymce.util.I18n.isRtl();
+			} ],
+			[ 'documentBaseUrl', function () {
+				return editor.documentBaseURI ? editor.documentBaseURI.getURI() : editor.editorManager.documentBaseURL;
+			} ],
+		].forEach( function ( entry ) {
+			if ( ! ( entry[ 0 ] in editor ) ) {
+				Object.defineProperty( editor, entry[ 0 ], { configurable: true, get: entry[ 1 ] } );
+			}
+		} );
+
+		editor.on( 'PreInit', function () {
+			addDomHelpers( editor.dom );
+			addSchemaAliases( editor.schema );
+			warnIfRead( editor.parser, 'filterNode', 'editor.parser.filterNode()', 'Use editor.parser.addNodeFilter().' );
+		} );
+
+		editor.on( 'init', function () {
+			var undoManager = editor.undoManager;
+			var selection = editor.selection;
+			var theme = editor.theme;
+
+			undoManager.onUndo = new Dispatcher( editor, 'Undo', undoArgs, undoManager );
+			undoManager.onRedo = new Dispatcher( editor, 'Redo', undoArgs, undoManager );
+			undoManager.onBeforeAdd = new Dispatcher( editor, 'BeforeAddUndo', null, undoManager );
+			undoManager.onAdd = new Dispatcher( editor, 'AddUndo', null, undoManager );
+
+			selection.onBeforeGetContent = new Dispatcher( editor, 'BeforeGetContent', selectionFilter( true ), selection );
+			selection.onGetContent = new Dispatcher( editor, 'GetContent', selectionFilter( true ), selection );
+			selection.onBeforeSetContent = new Dispatcher( editor, 'BeforeSetContent', selectionFilter( true ), selection );
+			selection.onSetContent = new Dispatcher( editor, 'SetContent', selectionFilter( true ), selection );
+
+			theme.resizeBy = theme.resizeBy || function ( width, height ) {
+				var area = editor.getContentAreaContainer();
+
+				if ( height && area ) {
+					theme.resizeTo( null, area.offsetHeight + height );
+				}
+			};
+
+			warnIfRead( theme, 'panel', 'editor.theme.panel', 'Use editor.ui.registry.addContextToolbar() or a dialog.' );
+			warnUnknownToolbarItems( editor );
+		} );
+	}
+
+	// TinyMCE 8 drops unknown toolbar items silently, which hides a missing plugin or button.
+	function warnUnknownToolbarItems( editor ) {
+		var buttons = editor.ui.registry.getAll().buttons;
+
+		TOOLBAR_SETTINGS.forEach( function ( name ) {
+			var toolbar = editor.options.isRegistered( name ) ? editor.options.get( name ) : null;
+
+			if ( typeof toolbar !== 'string' ) {
+				return;
+			}
+
+			toolbar.split( /[\s,]+/ ).forEach( function ( item ) {
+				if ( item && '|' !== item && ! buttons[ item.toLowerCase() ] ) {
+					warnOnce( 'toolbar.' + item, 'Toolbar item "' + item + '" is not registered, so TinyMCE 8 does not show it.' );
+				}
+			} );
+		} );
+	}
+
 	function addLegacyClasses( root ) {
 		Object.keys( LEGACY_CLASSES ).forEach( function ( selector ) {
 			if ( root.matches( selector ) ) {
@@ -1553,6 +1805,7 @@
 		event.editor.on( 'ScriptsLoaded', function () {
 			shimWindowManager( event.editor );
 		} );
+		shimEditorApi( event.editor );
 		shimLegacyClasses( event.editor );
 		shimSaveContentEvent( event.editor );
 		shimWordPressContent( event.editor );
@@ -1676,6 +1929,7 @@
 		var Control = Class.extend( {
 			Defaults: {},
 			init: function ( settings ) {
+				warnOnce( 'ui.control', 'tinymce.ui controls are deprecated and do not render in TinyMCE 8; use editor.ui.registry.' );
 				this.settings = Tools.extend( {}, this.Defaults, settings );
 				this.classes = createClassList( this.settings.classes );
 				this.data = {};
@@ -2722,12 +2976,249 @@
 			}
 
 			return add.call( manager, name, function ( editor, url ) {
-				return new plugin( editor, url, editor.$ );
+				var instance = new plugin( editor, url, editor.$ );
+
+				if ( instance && instance.createControl ) {
+					warnOnce( 'plugin.createControl', 'Plugin "' + name + '" has createControl(), which TinyMCE 8 does not call; use editor.addButton().' );
+				}
+
+				return instance;
 			} );
 		};
 	}
 
 	shimPluginManager();
+
+	/*
+	 * In debug mode, a v4 API that has no TinyMCE 8 equivalent explains itself when read, so the
+	 * TypeError a plugin then hits has a cause next to it. Production pages leave the name undefined.
+	 */
+	function warnIfRead( target, name, label, advice ) {
+		if ( ! config.debug || ! target || name in target ) {
+			return;
+		}
+
+		Object.defineProperty( target, name, {
+			configurable: true,
+			get: function () {
+				warnOnce( 'read.' + label, label + ' is not available in TinyMCE 8. ' + advice );
+				return undefined;
+			},
+			set: function ( value ) {
+				Object.defineProperty( target, name, { configurable: true, writable: true, value: value } );
+			},
+		} );
+	}
+
+	/*
+	 * TinyMCE 3 style events such as `editor.onInit.add( callback )`, ported from TinyMCE 4's compat3x
+	 * plugin (LGPL 2.1), which WordPress loaded by default. Callbacks get the target and positional
+	 * arguments instead of an event object.
+	 */
+	function Dispatcher( target, eventName, argsMap, defaultScope ) {
+		var callbacks = [];
+
+		function noop() {}
+
+		target = target || this;
+
+		if ( ! eventName ) {
+			this.add = this.addToTop = this.remove = this.dispatch = noop;
+			return;
+		}
+
+		this.add = function ( callback, scope, prepend ) {
+			warnOnce( 'dispatcher', 'TinyMCE 3 events such as on' + eventName + '.add() are deprecated; use editor.on().' );
+
+			function patched( event ) {
+				var args = [];
+
+				if ( typeof argsMap === 'string' ) {
+					argsMap = argsMap.split( ' ' );
+				}
+
+				if ( typeof argsMap === 'function' ) {
+					args = argsMap( eventName, event, target );
+
+					if ( ! args ) {
+						return;
+					}
+				} else if ( argsMap ) {
+					args = argsMap.map( function ( name ) {
+						return event[ name ];
+					} );
+				} else {
+					args = [ event ];
+				}
+
+				args.unshift( defaultScope || target );
+
+				if ( callback.apply( scope || defaultScope || target, args ) === false ) {
+					event.stopImmediatePropagation();
+				}
+			}
+
+			target.on( eventName, patched, prepend );
+			callbacks.push( { original: callback, patched: patched } );
+
+			return patched;
+		};
+
+		this.addToTop = function ( callback, scope ) {
+			this.add( callback, scope, true );
+		};
+
+		this.remove = function ( callback ) {
+			callbacks = callbacks.filter( function ( item ) {
+				if ( item.original !== callback ) {
+					return true;
+				}
+
+				target.off( eventName, item.patched );
+				return false;
+			} );
+		};
+
+		this.dispatch = function () {
+			target.dispatch( eventName );
+			return true;
+		};
+	}
+
+	function createDebounced( callback, time ) {
+		var timer;
+
+		function debounced() {
+			var args = arguments;
+
+			window.clearTimeout( timer );
+			timer = window.setTimeout( function () {
+				callback.apply( this, args );
+			}, time );
+		}
+
+		debounced.stop = function () {
+			window.clearTimeout( timer );
+		};
+
+		return debounced;
+	}
+
+	function rgbToHex( color ) {
+		return color.replace( /rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/gi, function ( match, r, g, b ) {
+			return '#' + [ r, g, b ].map( function ( value ) {
+				var hex = parseInt( value, 10 ).toString( 16 );
+
+				return hex.length > 1 ? hex : '0' + hex;
+			} ).join( '' );
+		} ).toLowerCase();
+	}
+
+	function addDomHelpers( dom ) {
+		if ( ! dom.$ ) {
+			dom.$ = $;
+			dom.$$ = function ( elements ) {
+				return $( elements, dom.doc );
+			};
+		}
+
+		if ( ! dom.toHex ) {
+			dom.toHex = rgbToHex;
+		}
+	}
+
+	function addSchemaAliases( schema ) {
+		if ( ! schema.getShortEndedElements ) {
+			schema.getShortEndedElements = schema.getVoidElements;
+			schema.getWhiteSpaceElements = schema.getWhitespaceElements;
+		}
+
+		return schema;
+	}
+
+	// Removed from the tinymce global and its namespaces.
+	function shimGlobalApi() {
+		var util = tinymce.util;
+		var delay = util.Delay;
+		var Schema = tinymce.html.Schema;
+		var I18n = util.I18n;
+
+		[
+			[ 'setTimeout', function ( callback, time ) {
+				return window.setTimeout( callback, time || 0 );
+			} ],
+			[ 'setInterval', function ( callback, time ) {
+				return window.setInterval( callback, time );
+			} ],
+			[ 'clearTimeout', function ( id ) {
+				window.clearTimeout( id );
+			} ],
+			[ 'clearInterval', function ( id ) {
+				window.clearInterval( id );
+			} ],
+			[ 'requestAnimationFrame', function ( callback ) {
+				window.requestAnimationFrame( callback );
+			} ],
+			[ 'debounce', createDebounced ],
+			[ 'throttle', createDebounced ],
+		].forEach( function ( entry ) {
+			if ( ! delay[ entry[ 0 ] ] ) {
+				delay[ entry[ 0 ] ] = entry[ 1 ];
+			}
+		} );
+
+		tinymce.html.Schema = function ( settings ) {
+			return addSchemaAliases( Schema( settings ) );
+		};
+
+		util.Tools.create = util.Tools.create || tinymce.create;
+		util.Tools.createNS = util.Tools.createNS || tinymce.createNS;
+
+		if ( ! ( 'rtl' in I18n ) ) {
+			Object.defineProperty( I18n, 'rtl', {
+				configurable: true,
+				get: function () {
+					return I18n.isRtl();
+				},
+			} );
+		}
+
+		[ 'settings', 'defaultSettings' ].forEach( function ( name ) {
+			if ( ! ( name in tinymce ) ) {
+				Object.defineProperty( tinymce, name, {
+					configurable: true,
+					get: function () {
+						return tinymce.defaultOptions;
+					},
+				} );
+			}
+		} );
+
+		tinymce.PluginManager.dependencies = tinymce.PluginManager.dependencies || function () {
+			return [];
+		};
+		tinymce.PluginManager.addComponents = tinymce.PluginManager.addComponents || function ( name ) {
+			warnOnce( 'plugin.components', 'PluginManager.addComponents() has no effect in TinyMCE 8; load "' + name + '" scripts separately.' );
+		};
+
+		util.Dispatcher = util.Dispatcher || Dispatcher;
+		tinymce.onBeforeUnload = tinymce.onBeforeUnload || new Dispatcher( tinymce, 'BeforeUnload' );
+		tinymce.onAddEditor = tinymce.onAddEditor || new Dispatcher( tinymce, 'AddEditor', 'editor' );
+		tinymce.onRemoveEditor = tinymce.onRemoveEditor || new Dispatcher( tinymce, 'RemoveEditor', 'editor' );
+
+		function noop() {}
+
+		util.Cookie = util.Cookie || { get: noop, getHash: noop, remove: noop, set: noop, setHash: noop };
+
+		addDomHelpers( tinymce.DOM );
+
+		warnIfRead( util, 'Color', 'tinymce.util.Color', 'Use a color library or plain CSS values.' );
+		warnIfRead( I18n, 'data', 'tinymce.util.I18n.data', 'Use tinymce.addI18n() and tinymce.translate().' );
+		warnIfRead( tinymce, 'InlineWindowManager', 'tinymce.InlineWindowManager', 'Use editor.windowManager.' );
+		warnIfRead( tinymce, 'WPWindowManager', 'tinymce.WPWindowManager', 'Use editor.windowManager.' );
+	}
+
+	shimGlobalApi();
 
 	// TinyMCE 4 exposed editors as an array that was also keyed by editor ID.
 	if ( ! ( 'editors' in tinymce ) ) {

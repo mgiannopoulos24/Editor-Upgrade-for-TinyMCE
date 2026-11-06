@@ -1276,7 +1276,7 @@ The current bootstrap (`editor_js()`) prints `tinyMCEPreInit` with `baseURL`, `s
 |---|---|---|---|
 | `editor.addButton(id, opts)` | `editor.ui.registry.addButton/addToggleButton` | High | Map `icon`, `image`, `text`, `tooltip`, `onclick`, `onPostRender`, `cmd`, `stateSelector`. `image` becomes an SVG data URI or a registered icon. |
 | `editor.addMenuItem(id, opts)` | `editor.ui.registry.addMenuItem/addNestedMenuItem` | High | Map `context`, `menu`, `cmd`, `onclick`, `stateSelector`. |
-| `editor.addContextToolbar` | native | High | Same name in v8; shim mainly normalizes predicate strings. |
+| `editor.addContextToolbar` | `editor.ui.registry.addContextToolbar` | High | Removed from the editor in v8; the shim generates an ID and normalizes predicate strings and item arrays. |
 | `editor.buttons` | internal registry | Medium | Expose a proxy object backed by the registry where possible. Reads work; arbitrary writes register a button. |
 | `editor.settings` | `editor.options` | High | Proxy object with `get`, `set`, `has`, `unset`; reads fall back to `editor.options.get`. |
 | `tinymce.$` / `editor.$` | none (use `tinymce.dom.DomQuery` replacement) | Medium | Provide a small jQuery-like wrapper over `querySelectorAll` for the subset WP and plugins use: `each`, `on`, `off`, `attr`, `css`, `addClass`, `removeClass`, `hasClass`, `find`, `closest`, `append`, `remove`, `show`, `hide`, `is`, `val`, `text`, `html`, `width`, `height`, `offset`, `scrollTop`. |
@@ -1289,7 +1289,7 @@ The current bootstrap (`editor_js()`) prints `tinyMCEPreInit` with `baseURL`, `s
 | `editor.windowManager.open({url, width, height})` | `editor.windowManager.open({...})` with panel schema | Low–Medium | URL mode is gone; translate to an iframe panel. |
 | `editor.windowManager.open({items: [...], buttons: [...]})` | panel schema | Low | Translate common item types: `textbox`, `listbox`, `checkbox`, `button`, `container`, `label`. |
 | `tinymce.util.VK` | still present | High | No shim needed. |
-| `tinymce.util.Delay` | still present | High | No shim needed. |
+| `tinymce.util.Delay` | partly present | High | v8 keeps `setEditorTimeout`/`setEditorInterval`; `setTimeout`, `setInterval`, `clear*`, `requestAnimationFrame`, `debounce`, `throttle` are removed and shimmed. |
 | `tinymce.util.Tools.resolve` | still present | High | No shim needed. |
 | `tinymce.html.DomParser/Serializer/Schema/Writer` | still present | High | No shim needed. |
 | `tinymce.html.SaxParser` | removed | Low | Reimplement a subset on `DomParser`; attribute callbacks only. |

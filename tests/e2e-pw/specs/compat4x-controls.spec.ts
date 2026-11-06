@@ -59,6 +59,32 @@ test.describe( 'compat4x: tinymce.ui', () => {
 		expect( await page.evaluate( () => window.compat4xLog ) ).toEqual( [ 'true' ] );
 	} );
 
+	test( 'editor.addContextToolbar() shows its toolbar on a matching selection', async ( { page } ) => {
+		const errors = collectErrors( page );
+
+		await page.evaluate( async () => {
+			const textarea = document.createElement( 'textarea' );
+
+			textarea.id = 'context-toolbar';
+			document.querySelector( '#wpbody-content' )?.prepend( textarea );
+
+			const [ editor ] = await window.tinymce.init( {
+				selector: '#context-toolbar',
+				setup( instance ) {
+					instance.addContextToolbar( 'strong', 'bold' );
+				},
+			} );
+
+			editor.focus();
+			editor.setContent( '<p><strong>x</strong></p>' );
+			editor.selection.select( editor.dom.select( 'strong' )[ 0 ] );
+			editor.nodeChanged();
+		} );
+
+		await expect( page.locator( '.tox-pop' ) ).toBeVisible();
+		expect( errors ).toEqual( [] );
+	} );
+
 	test( 'a plugin that extends tinymce.ui at load time keeps its working parts', async ( { page } ) => {
 		const errors = collectErrors( page );
 

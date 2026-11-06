@@ -212,5 +212,66 @@
 		"wpEditor": "function",
 		"activeEditor": "content",
 		"preInit": "object"
+	},
+	"context_sidebar": {
+		"predicate": true
+	},
+	"legacy_api": {
+		"getLang": "fallback",
+		"rtl": "boolean",
+		"execCallback": "called:x",
+		"execMissing": "undefined",
+		"baseUrl": "string",
+		"domDollar": "function",
+		"domDollars": "function",
+		"globalDollar": "function",
+		"toHex": "#ff0010",
+		"shortEnded": true,
+		"whiteSpace": true,
+		"editorShortEnded": true,
+		"delay": [
+			"function",
+			"function",
+			"function",
+			"function",
+			"function",
+			"function",
+			"function"
+		],
+		"toolsCreate": "function",
+		"toolsCreateNS": "function",
+		"i18nRtl": "boolean",
+		"settings": "object",
+		"defaultSettings": "object",
+		"dependencies": 0,
+		"addComponents": "function",
+		"windows": true,
+		"managerEditor": true,
+		"resizeBy": "function",
+		"readonly": true,
+		"design": false,
+		"stop": "function",
+		"debounced": 2
+	},
+	"legacy_events": {
+		"preInit": 1,
+		"initEditor": true,
+		"content": "<p>new</p>",
+		"selectionSet": 1,
+		"nodeChange": [
+			true,
+			true,
+			true,
+			"boolean"
+		],
+		"exec": "compatLegacy",
+		"undoAdd": 1,
+		"dispatcher": "function",
+		"cookie": "function",
+		"undo": "function",
+		"windowOpen": "function",
+		"createInstance": "function",
+		"setActive": "function",
+		"createButton": "function"
 	}
 }

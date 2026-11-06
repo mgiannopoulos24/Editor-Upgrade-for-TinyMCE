@@ -25,6 +25,7 @@ interface TinyMCEEditor {
 	dom: { select( selector: string ): Element[] };
 	selection: { select( node: Element ): void };
 	addButton( name: string, spec: TinyMCEV4ButtonSpec ): void;
+	addContextToolbar( predicate: string, items: string ): void;
 	getContent(): string;
 	setContent( content: string ): void;
 	save(): string;
