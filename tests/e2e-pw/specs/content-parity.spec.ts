@@ -1,5 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
-import { collectErrors, getPostContent, resetEditorTab, routes, setPluginState } from './helpers';
+import { collectErrors, routes } from '../utils/page';
+import { V4_BASELINE } from '../utils/v4-baseline';
+import { getPostContent, resetEditorTab, setPluginState } from '../utils/wp-cli';
 
 async function openNewPost( page: Page ) {
 	await page.goto( routes.postNew );
@@ -20,44 +22,6 @@ async function saveDraft( page: Page ) {
 
 const getEditorContent = ( page: Page ) =>
 	page.evaluate( () => window.tinymce.get( 'content' ).getContent() );
-
-/**
- * What TinyMCE 4 stores for each input after Code -> Visual -> save. Recorded on WordPress 7.1.3
- * with this plugin deactivated; update these only against a new recording from TinyMCE 4.
- */
-const V4_BASELINE: Record<string, { input: string; stored?: string }> = {
-	paragraphs: { input: 'one\n\ntwo' },
-	'empty paragraph': { input: 'one\n\n&nbsp;\n\ntwo' },
-	'more tag': { input: 'one\n\n<!--more-->\n\ntwo' },
-	'nextpage tag': { input: 'one\n\n<!--nextpage-->\n\ntwo' },
-	script: { input: 'one\n\n<script>var a = 1;</script>\n\ntwo' },
-	style: { input: 'one\n\n<style>.a{color:red}</style>\n\ntwo' },
-	'b and i': { input: 'one <b>bold</b> <i>ital</i>' },
-	shortcode: { input: 'one\n\n[gallery ids="1,2"]\n\ntwo' },
-	comment: { input: 'one\n\n<!-- note -->\n\ntwo' },
-	'list first': {
-		input: '<ul>\n <li>a</li>\n <li>b</li>\n</ul>',
-		stored: '<ul>\n \t<li>a</li>\n \t<li>b</li>\n</ul>',
-	},
-	'list between text': {
-		input: 'one\n<ul>\n <li>a</li>\n</ul>\ntwo',
-		stored: 'one\n<ul>\n \t<li>a</li>\n</ul>\ntwo',
-	},
-	'table first': { input: '<table>\n<tbody>\n<tr>\n<td>a</td>\n</tr>\n</tbody>\n</table>\n&nbsp;' },
-	'void elements': {
-		input: 'one<br />two\n<hr />\n<img src="/a.png" alt="" />',
-		stored: 'one\ntwo\n\n<hr />\n\n<img src="/a.png" alt="" />',
-	},
-	attributes: {
-		input: '<a href="/x" target="_blank" rel="noopener">l</a> <span style="color: red;" class="c">s</span>',
-		stored: '<a href="/x" target="_blank" rel="noopener">l</a> <span class="c" style="color: red;">s</span>',
-	},
-	entities: { input: 'a &amp; b &lt; c "q" \u00e9' },
-	iframe: { input: '<iframe src="https://example.org/" width="10" height="10"></iframe>' },
-	caption: {
-		input: '[caption id="a" align="alignnone" width="10"]<img src="/a.png" alt="" width="10" height="10" /> cap[/caption]',
-	},
-};
 
 test.describe( 'Saved HTML parity with TinyMCE 4', () => {
 	test.beforeAll( () => setPluginState( 'classic-editor', true ) );
@@ -103,6 +67,52 @@ test.describe( 'Saved HTML parity with TinyMCE 4', () => {
 		const postId = await saveDraft( page );
 
 		expect( getPostContent( postId ) ).toBe( input );
+	} );
+
+	test( 'a site can turn the TinyMCE 8 content protections back on', async ( { page } ) => {
+		await openNewPost( page );
+
+		const saved = await page.evaluate( async () => {
+			const textarea = document.createElement( 'textarea' );
+
+			textarea.id = 'protected';
+			textarea.value = '<iframe src="about:blank"></iframe>\n\n<!-- <b>x</b> -->';
+			document.querySelector( '#wpbody-content' )?.prepend( textarea );
+
+			const [ editor ] = await window.tinymce.init( {
+				selector: '#protected',
+				sandbox_iframes: true,
+				allow_html_in_comments: false,
+			} );
+
+			editor.save();
+
+			return textarea.value;
+		} );
+
+		expect( saved ).toContain( 'sandbox=""' );
+		expect( saved ).not.toContain( '<b>x</b>' );
+	} );
+
+	test( 'the editor frame has square corners and no second border', async ( { page } ) => {
+		await openNewPost( page );
+
+		const frame = page.locator( '#wp-content-editor-container .tox-tinymce' );
+
+		await expect( frame ).toHaveCSS( 'border-top-left-radius', '0px' );
+		await expect( frame ).toHaveCSS( 'border-top-width', '0px' );
+	} );
+
+	test( 'script and style placeholders are visible in the editor', async ( { page } ) => {
+		await openNewPost( page );
+		await page.locator( '#content-html' ).click();
+		await page.locator( '#content' ).fill( 'one\n\n<script>var a = 1;</script>\n\ntwo' );
+		await page.locator( '#content-tmce' ).click();
+
+		const placeholder = page.frameLocator( '#content_ifr' ).locator( 'img.mce-object-script' );
+
+		await expect( placeholder ).toBeVisible();
+		await expect( placeholder ).toHaveCSS( 'background-image', /script\.svg/ );
 	} );
 
 	test( 'tinymce-editor-setup and tinymce-editor-init fire for each editor', async ( { page } ) => {

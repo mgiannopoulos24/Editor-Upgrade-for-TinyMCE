@@ -13,7 +13,7 @@ mkdir -p "$OUT/assets"
 # Allowlist: only what WordPress reads at runtime.
 cp "$SLUG.php" readme.txt LICENSE changelog.txt "$OUT/"
 cp -r includes "$OUT/"
-cp -r assets/js assets/vendor "$OUT/assets/"
+cp -r assets/css assets/js assets/vendor "$OUT/assets/"
 rm -f "$OUT/assets/vendor/tinymce.sha256"
 [ -d languages ] && [ -n "$(ls -A languages)" ] && cp -r languages "$OUT/"
 

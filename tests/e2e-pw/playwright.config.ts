@@ -44,6 +44,22 @@ export default defineConfig( {
 			},
 			dependencies: [ 'setup' ],
 		},
+		{
+			name: 'firefox',
+			use: {
+				...devices[ 'Desktop Firefox' ],
+				storageState: authFile,
+			},
+			dependencies: [ 'setup' ],
+		},
+		{
+			name: 'webkit',
+			use: {
+				...devices[ 'Desktop Safari' ],
+				storageState: authFile,
+			},
+			dependencies: [ 'setup' ],
+		},
 	],
 	webServer: {
 		command: 'bun run start',

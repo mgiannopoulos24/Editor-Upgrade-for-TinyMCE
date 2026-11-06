@@ -34,15 +34,42 @@ class Editor_Upgrade_For_TinyMCE_Settings {
 	/**
 	 * Remove plugins that do not exist in TinyMCE 8
 	 *
-	 * Drops TinyMCE 4 plugins removed upstream (colorpicker, hr, paste, tabfocus, textcolor) and
-	 * the WordPress `wp*` plugins until they are ported. Plugins added with `mce_external_plugins`
-	 * are not affected.
+	 * Drops TinyMCE 4 plugins removed upstream and the WordPress `wp*` plugins until they are
+	 * ported. Other names may be plugins registered in JavaScript with `PluginManager.add()`, which
+	 * only compat4x can check, so it decides about those at `tinymce.init()`.
 	 *
 	 * @param string[] $plugins Internal TinyMCE plugin names.
 	 * @return string[]
 	 */
 	public function filter_plugins( $plugins ) {
-		return array_values( array_intersect( (array) $plugins, Editor_Upgrade_For_TinyMCE::get_available_plugins() ) );
+		$removed = array(
+			'colorpicker',
+			'compat3x',
+			'contextmenu',
+			'fullpage',
+			'hr',
+			'imagetools',
+			'noneditable',
+			'paste',
+			'print',
+			'spellchecker',
+			'tabfocus',
+			'template',
+			'textcolor',
+			'textpattern',
+			'toc',
+			'wordpress',
+			'wpautoresize',
+			'wpdialogs',
+			'wpeditimage',
+			'wpemoji',
+			'wpgallery',
+			'wplink',
+			'wptextpattern',
+			'wpview',
+		);
+
+		return array_values( array_diff( (array) $plugins, array_diff( $removed, Editor_Upgrade_For_TinyMCE::get_available_plugins() ) ) );
 	}
 
 	/**
@@ -72,13 +99,17 @@ class Editor_Upgrade_For_TinyMCE_Settings {
 			$settings['element_format'] = 'xhtml';
 		}
 
-		// TinyMCE 8 would otherwise change iframes, objects, and embeds in saved content.
+		// TinyMCE 8 would otherwise change iframes, objects, embeds, and comments in saved content.
 		if ( ! isset( $settings['sandbox_iframes'] ) ) {
 			$settings['sandbox_iframes'] = false;
 		}
 
 		if ( ! isset( $settings['convert_unsafe_embeds'] ) ) {
 			$settings['convert_unsafe_embeds'] = false;
+		}
+
+		if ( ! isset( $settings['allow_html_in_comments'] ) ) {
+			$settings['allow_html_in_comments'] = true;
 		}
 
 		// Removed in TinyMCE 8 and no longer used by WordPress; v8 warns at init.

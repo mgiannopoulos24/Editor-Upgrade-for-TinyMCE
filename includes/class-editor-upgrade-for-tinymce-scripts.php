@@ -25,6 +25,29 @@ class Editor_Upgrade_For_TinyMCE_Scripts {
 	public function __construct() {
 		// Core registers the TinyMCE handles on `wp_default_scripts` at the default priority.
 		add_action( 'wp_default_scripts', array( $this, 'replace_scripts' ), 20 );
+		add_action( 'wp_default_styles', array( $this, 'register_styles' ), 20 );
+	}
+
+	/**
+	 * Load the editor styles wherever core loads its own
+	 *
+	 * @param WP_Styles $styles WP_Styles object.
+	 */
+	public function register_styles( $styles ) {
+		$handle = 'editor-upgrade-for-tinymce';
+
+		$styles->add(
+			$handle,
+			EDITOR_UPGRADE_FOR_TINYMCE_PLUGIN_URL . 'assets/css/editor.css',
+			array(),
+			Editor_Upgrade_For_TinyMCE::get_asset_version()
+		);
+
+		foreach ( array( 'editor-buttons', 'wp-edit-blocks' ) as $core_handle ) {
+			if ( isset( $styles->registered[ $core_handle ] ) ) {
+				$styles->registered[ $core_handle ]->deps[] = $handle;
+			}
+		}
 	}
 
 	/**

@@ -552,6 +552,8 @@ The following table covers the options WordPress sets or is likely to encounter 
 4. **`license_key`.** Without `license_key: 'gpl'`, v8 disables the editor and shows a warning. This is a hard failure, not a cosmetic issue.
 5. **`sandbox_iframes`.** v8 will add `sandbox=""` to iframes by default. WordPress embeds (YouTube, Vimeo, Spotify, etc.) may stop working in the editor preview. Decide between exclusions and disabling sandboxing, with a security review.
 
+**Decision (plugin, November 2026):** `sandbox_iframes`, `convert_unsafe_embeds`, and `allow_html_in_comments` default to the v4 behavior (`false`, `false`, `true`), because the v8 defaults change saved post HTML, which the plugin must not do. This is no weaker than the v4 editor WordPress ships today. The values are only set when absent, so a site can turn each protection back on through `tiny_mce_before_init`. Revisit before any core proposal.
+
 ### 5.4 UI API
 
 | v4 API | v8 replacement | Compatibility notes |

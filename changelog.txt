@@ -12,3 +12,8 @@
 * Fire the `tinymce-editor-setup` and `tinymce-editor-init` events that plugins and core listen to
 * Fix selection markers being saved in post content and an empty paragraph being added before a leading list or table
 * Fix switching to Visual failing when the content starts with an iframe
+* Let `SaveContent` handlers change the saved content again; TinyMCE 8 ignores those changes
+* Fix selection markers being saved inside `<audio>`, `<video>`, `<object>`, and `<noscript>`, and keep comments that contain tags
+* Add a menu item's `context` to its menu, and support `on()`, `off()`, `fire()`, `getEl()`, `icon()`, and `visible()` on v4 controls
+* Load plugins registered with `PluginManager.add()` from the `plugins` setting
+* Square the editor frame so its corners no longer leave gaps inside the WordPress frame

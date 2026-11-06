@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { collectErrors, routes, setPluginState } from './helpers';
+import { collectErrors, routes } from '../utils/page';
+import { setPluginState } from '../utils/wp-cli';
 
 /** The block editor greets first-time users with a modal that blocks the toolbar. */
 async function dismissWelcomeGuide( page: Page ) {
@@ -36,6 +37,7 @@ test.describe( 'Classic block', () => {
 
 		const editor = page.locator( '.tox-tinymce' );
 		await expect( editor ).toBeVisible();
+		await expect( editor ).toHaveCSS( 'border-top-left-radius', '0px' );
 
 		const frame = page.frameLocator( '.tox-edit-area iframe' );
 		await frame.locator( 'body' ).click();

@@ -1,15 +1,4 @@
 import { execSync } from 'node:child_process';
-import type { Page } from '@playwright/test';
-
-/** wp-env's default admin account. */
-export const credentials = {
-	username: process.env.WP_USERNAME ?? 'admin',
-	password: process.env.WP_PASSWORD ?? 'password',
-};
-
-export const routes = {
-	postNew: '/wp-admin/post-new.php?post_type=post',
-} as const;
 
 /** Activate or deactivate a plugin through the wp-env CLI. */
 export function setPluginState( plugin: string, active: boolean ) {
@@ -33,18 +22,4 @@ export function getPostContent( postId: string ) {
 		encoding: 'utf8',
 		stdio: [ 'ignore', 'pipe', 'ignore' ],
 	} ).replace( /\r\n/g, '\n' ).replace( /\n$/, '' );
-}
-
-/** Collect uncaught exceptions and `console.error()` calls for the whole test. */
-export function collectErrors( page: Page ) {
-	const errors: string[] = [];
-
-	page.on( 'pageerror', ( error ) => errors.push( error.message ) );
-	page.on( 'console', ( message ) => {
-		if ( message.type() === 'error' ) {
-			errors.push( message.text() );
-		}
-	} );
-
-	return errors;
 }

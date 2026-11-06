@@ -1,0 +1,19 @@
+/**
+ * Editor chrome overrides.
+ *
+ * The TinyMCE 8 skin rounds the editor and gives it a 2px border. WordPress draws its own square
+ * frame around the editor, so the rounded corners leave gaps inside that frame.
+ */
+.tox.tox-tinymce:not(.tox-tinymce-inline) {
+	border: 1px solid #dcdcde;
+	border-radius: 0;
+}
+
+.wp-editor-container .tox.tox-tinymce:not(.tox-tinymce-inline) {
+	border: 0;
+}
+
+/* Core styles this icon through `i.mce-i-dfw`, which the TinyMCE 8 skin's font reset overrides. */
+.tox i.mce-ico.mce-i-dfw {
+	font-family: dashicons;
+}

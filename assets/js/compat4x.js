@@ -39,6 +39,19 @@
 		strikethrough: 'strike-through'
 	};
 
+	// TinyMCE 8's default menus, limited to its open source items. A menu in the `menu` setting
+	// replaces the default one, so adding a v4 `context` item must include these.
+	var DEFAULT_MENUS = {
+		file: { title: 'File', items: 'newdocument restoredraft | preview | export print' },
+		edit: { title: 'Edit', items: 'undo redo | cut copy paste pastetext | selectall | searchreplace' },
+		view: { title: 'View', items: 'code | visualaid visualchars visualblocks | spellchecker | preview fullscreen' },
+		insert: { title: 'Insert', items: 'image link media inserttable codesample accordion | charmap emoticons hr | pagebreak nonbreaking anchor | insertdatetime' },
+		format: { title: 'Format', items: 'bold italic underline strikethrough superscript subscript codeformat | styles blocks fontfamily fontsize align lineheight | forecolor backcolor | language | removeformat' },
+		tools: { title: 'Tools', items: 'spellchecker spellcheckerlanguage | code wordcount' },
+		table: { title: 'Table', items: 'inserttable | cell row column | tableprops deletetable' },
+		help: { title: 'Help', items: 'help' },
+	};
+
 	var warned = {};
 
 	function warn( message ) {
@@ -150,6 +163,14 @@
 	 * inline spans (with a zero-width space) until core removes them.
 	 */
 	function prepareMarkerSpans( value ) {
+		// The content of these elements is not edited, so a marker inside would be saved with it.
+		value = value.replace(
+			/(<(iframe|audio|video|object|noscript|script|style)\b[^>]*>)([\s\S]*?)(<\/\2>)/gi,
+			function ( match, open, tag, content, close ) {
+				return open + content.replace( /<span\b[^>]*\bmce_SELRES_(?:start|end)\b[^>]*>[\s\S]*?<\/span>/gi, '' ) + close;
+			}
+		);
+
 		return value.replace(
 			/<span\b([^>]*\bmce_SELRES_(?:start|end)\b[^>]*)>([\s\S]*?)<\/span>/gi,
 			function ( match, attributes, content ) {
@@ -200,13 +221,16 @@
 
 	/*
 	 * The `this` of a v4 UI callback. TinyMCE 8 only exposes an API object while the component
-	 * is mounted, so the state is kept here and applied when the component mounts.
+	 * is mounted, so the state is kept here and applied when the component mounts. `host` holds
+	 * the editor, the toolbar item name (when there is one), and the icon name resolver.
 	 */
-	function createControl( settings ) {
+	function createControl( settings, host ) {
 		var api = null;
+		var listeners = {};
 		var state = {
 			active: !! settings.active,
 			disabled: !! settings.disabled,
+			icon: settings.icon,
 			text: settings.text,
 			value: settings.value,
 		};
@@ -227,11 +251,8 @@
 			};
 		}
 
-		function unsupported( name ) {
-			return function () {
-				warnOnce( 'control.' + name, 'control.' + name + '() is not available in TinyMCE 8.' );
-				return control;
-			};
+		function eachEventName( names, callback ) {
+			names.toLowerCase().split( /\s+/ ).forEach( callback );
 		}
 
 		var control = {
@@ -246,18 +267,75 @@
 					api.setEnabled( ! value );
 				}
 			} ),
+			icon: accessor( 'icon', function ( value ) {
+				if ( api.setIcon ) {
+					api.setIcon( host.resolveIconName( value ) );
+				}
+			} ),
 			text: accessor( 'text', function ( value ) {
 				if ( api.setText ) {
 					api.setText( value );
 				}
 			} ),
 			value: accessor( 'value', function () {} ),
-			on: unsupported( 'on' ),
-			off: unsupported( 'off' ),
-			fire: unsupported( 'fire' ),
+			name: function () {
+				return host.name;
+			},
+			on: function ( names, callback ) {
+				eachEventName( names, function ( name ) {
+					listeners[ name ] = ( listeners[ name ] || [] ).concat( callback );
+				} );
+				return control;
+			},
+			off: function ( names, callback ) {
+				eachEventName( names, function ( name ) {
+					listeners[ name ] = callback ? ( listeners[ name ] || [] ).filter( function ( listener ) {
+						return listener !== callback;
+					} ) : [];
+				} );
+				return control;
+			},
+			fire: function ( name, event ) {
+				var lowerName = name.toLowerCase();
+				var args = $.extend( { control: control, type: lowerName }, event );
+				var handler = getHandler( settings, lowerName );
+
+				if ( handler ) {
+					handler.call( control, args );
+				}
+
+				( listeners[ lowerName ] || [] ).forEach( function ( listener ) {
+					listener.call( control, args );
+				} );
+
+				return control;
+			},
+			// Only toolbar items have a stable element in TinyMCE 8; menu items are rebuilt on open.
 			getEl: function () {
-				warnOnce( 'control.getEl', 'control.getEl() is not available in TinyMCE 8.' );
-				return null;
+				var container = host.editor.getContainer();
+
+				return host.name && container ?
+					container.querySelector( '[data-mce-name="' + host.name.toLowerCase() + '"]' ) :
+					null;
+			},
+			visible: function ( isVisible ) {
+				var element = control.getEl();
+
+				if ( ! arguments.length ) {
+					return !! element && element.style.display !== 'none';
+				}
+
+				if ( element ) {
+					element.style.display = isVisible ? '' : 'none';
+				}
+
+				return control;
+			},
+			show: function () {
+				return control.visible( true );
+			},
+			hide: function () {
+				return control.visible( false );
 			},
 			bind: function ( newApi ) {
 				api = newApi;
@@ -276,11 +354,7 @@
 	}
 
 	function trigger( control, name, event ) {
-		var handler = getHandler( control.settings, name );
-
-		if ( handler ) {
-			handler.call( control, $.extend( { control: control, type: name }, event ) );
-		}
+		control.fire( name, event );
 	}
 
 	/*
@@ -294,6 +368,7 @@
 		var pendingIcons = [];
 		var scriptsLoaded = false;
 		var imageCount = 0;
+		var menuContexts = {};
 
 		function isKnownIcon( name ) {
 			var key = name.toLowerCase();
@@ -333,6 +408,18 @@
 			pendingIcons = [];
 		} );
 
+		function resolveIconName( icon ) {
+			var name = RENAMED_ICONS[ icon ] || icon;
+
+			ensureIcon( name );
+
+			return name;
+		}
+
+		function createHost( name ) {
+			return { editor: editor, name: name, resolveIconName: resolveIconName };
+		}
+
 		function resolveIcon( settings ) {
 			var name;
 
@@ -349,10 +436,7 @@
 				return undefined;
 			}
 
-			name = RENAMED_ICONS[ settings.icon ] || settings.icon;
-			ensureIcon( name );
-
-			return name;
+			return resolveIconName( settings.icon );
 		}
 
 		function getAction( settings, control ) {
@@ -395,7 +479,7 @@
 		}
 
 		function createMenuItemSpec( settings, onAction ) {
-			var control = createControl( settings );
+			var control = createControl( settings, createHost() );
 			var spec = {
 				text: settings.text,
 				icon: resolveIcon( settings ),
@@ -476,14 +560,14 @@
 			spec.onItemAction = function ( api, value ) {
 				var item = items[ Number( value ) ];
 
-				trigger( createControl( item ), 'click' );
+				trigger( createControl( item, createHost() ), 'click' );
 			};
 			registry.addSplitButton( name, spec );
 		}
 
 		function addButton( name, settings ) {
 			var type = settings.type || 'button';
-			var control = createControl( settings );
+			var control = createControl( settings, createHost( name ) );
 			var spec;
 
 			// TinyMCE 4 used the button name as its icon when it had neither text nor an icon.
@@ -524,11 +608,51 @@
 			}
 		}
 
+		function addToMenu( name, settings ) {
+			var items = menuContexts[ settings.context ] = menuContexts[ settings.context ] || { start: [], end: [] };
+			var entry = 'before' === settings.separator ? [ '|', name ] : [ name ];
+
+			if ( settings.prependToContext ) {
+				items.start = items.start.concat( entry );
+			} else {
+				items.end = items.end.concat( entry );
+			}
+		}
+
+		// The theme reads `menu` when it renders, after every plugin has added its items.
+		function shimMenuOption() {
+			var options = editor.options;
+			var get = options.get;
+
+			options.get = function ( name ) {
+				var value = get.apply( options, arguments );
+				var menus;
+
+				if ( 'menu' !== name || ! Object.keys( menuContexts ).length ) {
+					return value;
+				}
+
+				menus = $.extend( {}, value );
+
+				Object.keys( menuContexts ).forEach( function ( context ) {
+					var base = menus[ context ] || DEFAULT_MENUS[ context ] || { title: context, items: '' };
+					var items = menuContexts[ context ];
+
+					menus[ context ] = {
+						title: base.title,
+						items: items.start.concat( base.items ? [ base.items ] : [], items.end ).join( ' ' ),
+					};
+				} );
+
+				return menus;
+			};
+		}
+
 		function addMenuItem( name, settings ) {
 			var spec;
 
 			if ( settings.context ) {
-				warnOnce( 'menuitem.context', 'Menu item "context" has no effect in TinyMCE 8; add the item through the "menu" setting.' );
+				addToMenu( name, settings );
 			}
 
 			v4Specs.menuItems[ name.toLowerCase() ] = settings;
@@ -584,6 +708,8 @@
 			} );
 		}
 
+		shimMenuOption();
+
 		if ( ! editor.addButton ) {
 			editor.addButton = function ( name, settings ) {
 				warnOnce( 'addButton', 'editor.addButton() is deprecated; use editor.ui.registry.addButton().' );
@@ -608,14 +734,52 @@
 	}
 
 	/*
-	 * wpautop() leaves a closing </p> after a selection marker at the start of a list or table.
-	 * TinyMCE 4 ignored it, but the HTML parser in TinyMCE 8 turns it into an empty paragraph.
+	 * Handlers change `event.content` on SaveContent, but editor.save() in TinyMCE 8 reads its own
+	 * arguments while dispatch() hands handlers a copy, so those changes would be lost.
 	 */
-	function removeMarkerParagraphEnd( content ) {
-		return content.replace(
-			/(<(?:ul|ol|dl|table|thead|tbody|tfoot|tr)\b[^>]*>\s*<span\b[^>]*\bmce_SELRES_(?:start|end)\b[^>]*>[^<]*<\/span>)<\/p>/gi,
-			'$1'
-		);
+	function shimSaveContentEvent( editor ) {
+		var dispatch = editor.dispatch;
+
+		editor.dispatch = function ( name, args ) {
+			var event = dispatch.apply( editor, arguments );
+
+			if ( args && 'savecontent' === String( name ).toLowerCase() ) {
+				args.content = event.content;
+			}
+
+			return event;
+		};
+	}
+
+	/*
+	 * wpautop() can leave a closing </p> with no opening tag, for example after a selection marker
+	 * at the start of a block. TinyMCE 4 ignored it, but the HTML parser in TinyMCE 8 turns it into
+	 * an empty paragraph.
+	 */
+	function removeStrayParagraphEnds( content ) {
+		var isOpen = false;
+		var marker = '(?:<span\\b[^>]*\\bmce_SELRES_(?:start|end)\\b[^>]*>[^<]*<\\/span>)?';
+
+		// Browsers treat these as blocks that end a paragraph, but wpautop() wraps them in one.
+		var blocks = 'center|dir|listing|main|search|xmp';
+
+		content = content
+			.replace( new RegExp( '<p>(' + marker + '\\s*<(?:' + blocks + ')\\b)', 'gi' ), '$1' )
+			.replace( new RegExp( '(<\\/(?:' + blocks + ')>\\s*' + marker + ')<\\/p>', 'gi' ), '$1' );
+
+		return content.replace( /<(\/?)p(?:\s[^>]*)?>/gi, function ( tag, closing ) {
+			if ( ! closing ) {
+				isOpen = true;
+				return tag;
+			}
+
+			if ( ! isOpen ) {
+				return '';
+			}
+
+			isOpen = false;
+			return tag;
+		} );
 	}
 
 	/*
@@ -689,7 +853,7 @@
 
 			if ( event.load && event.format !== 'raw' ) {
 				if ( hasWpautop() ) {
-					event.content = removeMarkerParagraphEnd( window.wp.editor.autop( event.content ) );
+					event.content = removeStrayParagraphEnds( window.wp.editor.autop( event.content ) );
 				} else {
 					// Prevent creation of paragraphs out of multiple HTML comments.
 					event.content = event.content.replace( /-->\s+<!--/g, '--><!--' );
@@ -714,9 +878,8 @@
 			} );
 		} );
 
-		// Core uses SaveContent, but TinyMCE 8 discards changes made to that event's content.
-		editor.on( 'GetContent', function ( event ) {
-			if ( ! isActive() || ! event.save || event.format === 'raw' ) {
+		editor.on( 'SaveContent', function ( event ) {
+			if ( ! isActive() ) {
 				return;
 			}
 
@@ -744,6 +907,7 @@
 		shimThemeResize( event.editor );
 		shimBookmarks( event.editor );
 		shimUi( event.editor );
+		shimSaveContentEvent( event.editor );
 		shimWordPressContent( event.editor );
 	} );
 
@@ -829,7 +993,11 @@
 		}
 
 		settings.plugins = plugins.filter( function ( name ) {
-			var keep = name && ( config.plugins.indexOf( name ) > -1 || external.hasOwnProperty( name ) );
+			var keep = name && (
+				config.plugins.indexOf( name ) > -1 ||
+				external.hasOwnProperty( name ) ||
+				tinymce.PluginManager.get( name )
+			);
 
 			if ( name && ! keep ) {
 				warn( 'Skipped TinyMCE plugin "' + name + '": not available in TinyMCE 8.' );
@@ -882,13 +1050,17 @@
 			settings.element_format = 'xhtml';
 		}
 
-		// TinyMCE 8 would otherwise change iframes, objects, and embeds in saved content.
+		// TinyMCE 8 would otherwise change iframes, objects, embeds, and comments in saved content.
 		if ( ! ( 'sandbox_iframes' in settings ) ) {
 			settings.sandbox_iframes = false;
 		}
 
 		if ( ! ( 'convert_unsafe_embeds' in settings ) ) {
 			settings.convert_unsafe_embeds = false;
+		}
+
+		if ( ! ( 'allow_html_in_comments' in settings ) ) {
+			settings.allow_html_in_comments = true;
 		}
 
 		// TinyMCE 8 accepts true, false, or 'both' for `resize`; `'vertical'` is invalid.

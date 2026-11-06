@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { collectErrors, routes, setPluginState } from './helpers';
+import { collectErrors, routes } from '../utils/page';
+import { setPluginState } from '../utils/wp-cli';
 
 test.describe( 'Classic editor', () => {
 	test.beforeAll( () => setPluginState( 'classic-editor', true ) );
@@ -26,7 +27,8 @@ test.describe( 'Classic editor', () => {
 		await expect( page.locator( '.tox-toolbar button' ).filter( { hasText: 'Paragraph' } ) ).toBeVisible();
 
 		const frame = page.frameLocator( '.tox-edit-area iframe' );
-		await frame.locator( 'body' ).click();
+		// Firefox can drop keys typed right after a click in the iframe, with TinyMCE 4 as well.
+		await page.evaluate( () => window.tinymce.get( 'content' ).focus() );
 		await page.keyboard.type( 'Smoke test' );
 
 		await page.locator( '#content-html' ).click();
@@ -34,6 +36,24 @@ test.describe( 'Classic editor', () => {
 
 		await page.locator( '#content-tmce' ).click();
 		await expect( frame.locator( 'body' ) ).toContainText( 'Smoke test' );
+
+		expect( errors ).toEqual( [] );
+	} );
+
+	test( 'the distraction-free button shows its icon and toggles the mode', async ( { page } ) => {
+		const errors = collectErrors( page );
+		const button = page.locator( '[data-mce-name="dfw"]' );
+
+		await page.goto( routes.postNew );
+		await expect( button ).toBeVisible();
+		await expect( button.locator( 'i' ) ).toHaveCSS( 'font-family', /dashicons/ );
+
+		await button.click();
+		await expect( page.locator( 'body' ) ).toHaveClass( /focus-on/ );
+		await expect( button ).toHaveAttribute( 'aria-pressed', 'true' );
+
+		await page.evaluate( () => window.tinymce.get( 'content' ).execCommand( 'wpToggleDFW' ) );
+		await expect( page.locator( 'body' ) ).not.toHaveClass( /focus-on/ );
 
 		expect( errors ).toEqual( [] );
 	} );

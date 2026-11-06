@@ -1,65 +1,10 @@
 import { test, expect, type Page } from '@playwright/test';
-import { collectErrors, routes, setPluginState } from './helpers';
+import { collectErrors, routes } from '../utils/page';
+import { PLUGIN_SOURCE } from '../utils/v4-plugin-fixture';
+import { setPluginState } from '../utils/wp-cli';
 
 // A regular expression, because `cache_suffix` adds a query string to the URL.
 const PLUGIN_PATH = /\/compat4x-ui-fixture\.js/;
-
-// A plugin written against the TinyMCE 4 API, registered the way mce_external_plugins does.
-const PLUGIN_SOURCE = `
-tinymce.PluginManager.add( 'compat4xfixture', function ( editor ) {
-	editor.addButton( 'fixture_cmd', { text: 'Run command', cmd: 'fixtureCommand' } );
-	editor.addButton( 'fixture_state', {
-		text: 'State',
-		stateSelector: 'strong'
-	} );
-	editor.addButton( 'fixture_postrender', {
-		text: 'Post render',
-		onPostRender: function () {
-			this.active( true );
-			window.compat4xLog.push( 'postrender:' + this.active() );
-		}
-	} );
-	editor.addButton( 'fixture_menu', {
-		type: 'menubutton',
-		text: 'Menu',
-		icon: false,
-		menu: [
-			{ text: 'First', onclick: function () { window.compat4xLog.push( 'menu:first' ); } },
-			{ text: '-' },
-			{ text: 'Nested', menu: [ { text: 'Inner', onclick: function () { window.compat4xLog.push( 'menu:inner' ); } } ] }
-		]
-	} );
-	editor.addButton( 'fixture_list', {
-		type: 'listbox',
-		text: 'Pick',
-		values: [ { text: 'Alpha', value: 'a' }, { text: 'Beta', value: 'b' } ],
-		onselect: function () {
-			window.compat4xLog.push( 'list:' + this.value() );
-		}
-	} );
-	editor.addButton( 'fixture_split', {
-		type: 'splitbutton',
-		text: 'Split',
-		onclick: function () { window.compat4xLog.push( 'split:main' ); },
-		menu: [ { text: 'Other', onclick: function () { window.compat4xLog.push( 'split:other' ); } } ]
-	} );
-	editor.addButton( 'fixture_builtin_icon', { tooltip: 'Builtin icon', icon: 'bullist', onclick: function () {} } );
-	editor.addButton( 'fixture_css_icon', { tooltip: 'CSS icon', icon: 'fixture-css', onclick: function () {} } );
-	editor.addButton( 'fixture_image', { tooltip: 'Image icon', image: 'https://example.org/i.png', onclick: function () {} } );
-	editor.addButton( 'fixture_dashicon', { tooltip: 'Dashicon', icon: 'dashicon dashicons-admin-links', onclick: function () {} } );
-
-	editor.addMenuItem( 'fixture_item', {
-		text: 'Menu item',
-		onclick: function () { window.compat4xLog.push( 'item:click' ); }
-	} );
-	editor.addMenuItem( 'fixture_toggle', { text: 'Toggle item', selectable: true, stateSelector: 'strong' } );
-	editor.addMenuItem( 'fixture_nested', {
-		text: 'Nested item',
-		menu: [ { text: 'Inner item', onclick: function () { window.compat4xLog.push( 'item:inner' ); } } ]
-	} );
-	editor.addCommand( 'fixtureCommand', function () { window.compat4xLog.push( 'cmd' ); } );
-} );
-`;
 
 async function bootFixture( page: Page ) {
 	await page.route( PLUGIN_PATH, ( route ) =>
@@ -80,10 +25,10 @@ async function bootFixture( page: Page ) {
 			selector: '#compat4x-fixture',
 			height: 300,
 			external_plugins: { compat4xfixture: '/wp-content/plugins/compat4x-ui-fixture.js' },
-			menubar: 'fixture',
+			menubar: 'fixture edit',
 			menu: { fixture: { title: 'Fixture', items: 'fixture_item fixture_toggle fixture_nested' } },
 			toolbar: [
-				'fixtureSetup fixture_cmd fixture_state fixture_postrender fixture_menu fixture_list fixture_split',
+				'fixtureSetup fixture_cmd fixture_state fixture_postrender fixture_menu fixture_list fixture_split fixture_control',
 				'fixture_builtin_icon fixture_css_icon fixture_image fixture_dashicon',
 			].join( ' ' ),
 			toolbar_mode: 'wrap',
@@ -212,6 +157,74 @@ test.describe( 'compat4x: editor.addButton() and editor.addMenuItem()', () => {
 		await page.getByRole( 'menuitem', { name: 'Inner item' } ).click();
 
 		expect( await getLog( page ) ).toEqual( expect.arrayContaining( [ 'item:click', 'item:inner' ] ) );
+		expect( errors ).toEqual( [] );
+	} );
+
+	test( 'a menu item with a context joins that menu after the default items', async ( { page } ) => {
+		const errors = collectErrors( page );
+		const editor = await bootFixture( page );
+
+		await editor.getByRole( 'menuitem', { name: 'Edit' } ).click();
+		await expect( page.getByRole( 'menuitem', { name: 'Select all' } ) ).toBeVisible();
+		await page.getByRole( 'menuitem', { name: 'Context item' } ).click();
+
+		expect( await getLog( page ) ).toContain( 'item:context' );
+		expect( errors ).toEqual( [] );
+	} );
+
+	test( 'controls support on(), fire(), getEl(), visible(), and text()', async ( { page } ) => {
+		const errors = collectErrors( page );
+		const editor = await bootFixture( page );
+		const button = editor.getByRole( 'button', { name: 'Control', exact: true } );
+
+		await button.click();
+		expect( await getLog( page ) ).toContain( 'custom:fixture_control' );
+
+		await page.evaluate( () => window.compat4xControl.visible( false ) );
+		await expect( button ).toBeHidden();
+
+		await page.evaluate( () => window.compat4xControl.visible( true ).text( 'Renamed' ) );
+		await expect( editor.getByRole( 'button', { name: 'Renamed', exact: true } ) ).toBeVisible();
+		expect( errors ).toEqual( [] );
+	} );
+
+	test( 'a SaveContent handler can change the saved content', async ( { page } ) => {
+		const errors = collectErrors( page );
+
+		await bootFixture( page );
+
+		const saved = await page.evaluate( () => {
+			const instance = window.tinymce.get( 'compat4x-fixture' );
+
+			instance.setContent( '<p>one</p>' );
+			instance.save();
+
+			return document.querySelector<HTMLTextAreaElement>( '#compat4x-fixture' )?.value;
+		} );
+
+		expect( saved ).toBe( 'one<!-- saved by fixture -->' );
+		expect( errors ).toEqual( [] );
+	} );
+
+	test( 'a plugin registered inline with PluginManager.add() loads from the plugins list', async ( { page } ) => {
+		const errors = collectErrors( page );
+
+		await page.goto( routes.postNew );
+		await expect( page.locator( '#content_ifr' ) ).toBeAttached();
+
+		const loaded = await page.evaluate( async () => {
+			const textarea = document.createElement( 'textarea' );
+
+			textarea.id = 'inline-plugin';
+			document.querySelector( '#wpbody-content' )?.prepend( textarea );
+			window.tinymce.PluginManager.add( 'compat4xinline', () => ( {} ) );
+
+			const [ editor ] = await window.tinymce.init( { selector: '#inline-plugin', plugins: 'compat4xinline' } );
+
+			return 'compat4xinline' in editor.plugins;
+		} );
+
+		expect( loaded ).toBe( true );
 		expect( errors ).toEqual( [] );
 	} );
 

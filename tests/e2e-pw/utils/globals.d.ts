@@ -3,6 +3,8 @@
  */
 interface TinyMCEV4Control {
 	settings: Record<string, unknown>;
+	visible( state: boolean ): TinyMCEV4Control;
+	text( value: string ): TinyMCEV4Control;
 }
 
 interface TinyMCEV4ButtonSpec {
@@ -17,6 +19,7 @@ interface TinyMCEEditor {
 		api_key?: string;
 	};
 	buttons: Record<string, TinyMCEV4ButtonSpec>;
+	plugins: Record<string, unknown>;
 	ui: { registry: { getAll(): { buttons: Record<string, unknown> } } };
 	dom: { select( selector: string ): Element[] };
 	selection: { select( node: Element ): void };
@@ -24,12 +27,15 @@ interface TinyMCEEditor {
 	getContent(): string;
 	setContent( content: string ): void;
 	save(): string;
+	focus(): void;
+	execCommand( command: string ): void;
 	nodeChanged(): void;
 }
 
 interface TinyMCE {
 	majorVersion: string;
 	get( id: string ): TinyMCEEditor;
+	PluginManager: { add( name: string, plugin: () => object ): void };
 	init( settings: Record<string, unknown> & { setup?( editor: TinyMCEEditor ): void } ): Promise<TinyMCEEditor[]>;
 }
 
@@ -39,4 +45,5 @@ interface Window {
 	};
 	tinymce: TinyMCE;
 	compat4xLog: string[];
+	compat4xControl: TinyMCEV4Control;
 }
