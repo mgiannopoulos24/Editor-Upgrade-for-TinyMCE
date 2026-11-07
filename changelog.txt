@@ -28,3 +28,7 @@
 * Keep menus and dialogs above the admin bar, and let `tinymce.ui.FloatPanel.zIndex` move them, which the Customizer relies on
 * Add the TinyMCE 3 style events and `editor.controlManager` from core's `compat3x`, and `addContextToolbar()`, `addSidebar()`, `setMode()`, `getLang()`, `execCallback()`, `documentBaseUrl`, `dom.$`, `dom.toHex()`, `util.Delay`, and schema aliases
 * Log a debug message for every TinyMCE 4 API with no TinyMCE 8 equivalent, and for toolbar items with no button
+* Pass renamed TinyMCE 4 settings to TinyMCE 8, such as `font_formats`, `textcolor_map`, and `target_list`
+* Stop saving pasted image files into posts as base64, as on TinyMCE 4
+* Only apply WordPress's content handling to editors that load the `wordpress` plugin, as on TinyMCE 4
+* Run a button's `onPostRender` before the editor's `init` event, as on TinyMCE 4; TinyMCE 8 mounts the toolbar after it

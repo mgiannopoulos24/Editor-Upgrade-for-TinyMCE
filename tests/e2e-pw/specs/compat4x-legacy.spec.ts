@@ -104,6 +104,62 @@ test.describe( 'compat4x: legacy classes, removed plugins, and removed settings'
 		expect( result.warnings.join() ).toContain( 'forced_root_block' );
 	} );
 
+	test( 'renamed settings reach TinyMCE 8, and settings with no equivalent log a message', async ( { page } ) => {
+		const result = await page.evaluate( async () => {
+			const warnings: string[] = [];
+			const original = window.console.warn;
+			const textarea = document.createElement( 'textarea' );
+
+			window.console.warn = ( ...args: unknown[] ) => warnings.push( args.join( ' ' ) );
+			textarea.id = 'renamed-settings';
+			document.querySelector( '#wpbody-content' )?.prepend( textarea );
+
+			const [ editor ] = await window.tinymce.init( {
+				selector: '#renamed-settings',
+				plugins: 'link',
+				toolbar: 'fontselect fontsizeselect forecolor',
+				font_formats: 'Fixture Font=arial',
+				fontsize_formats: '7pt 99pt',
+				textcolor_map: [ 'FF0000', 'Fixture red' ],
+				target_list: [ { title: 'Fixture target', value: '_top' } ],
+				rel_list: [ { title: 'Fixture rel', value: 'nofollow' } ],
+				default_link_target: '_blank',
+				color_picker_callback() {},
+				toolbar_items_size: 'small',
+			} );
+
+			window.console.warn = original;
+
+			const options = ( editor as unknown as { options: { get( name: string ): unknown } } ).options;
+
+			return {
+				warnings,
+				target: options.get( 'link_target_list' ),
+				rel: options.get( 'link_rel_list' ),
+				defaultTarget: options.get( 'link_default_target' ),
+			};
+		} );
+
+		expect( result.target ).toEqual( [ { title: 'Fixture target', value: '_top' } ] );
+		expect( result.rel ).toEqual( [ { title: 'Fixture rel', value: 'nofollow' } ] );
+		expect( result.defaultTarget ).toBe( '_blank' );
+		expect( result.warnings.join() ).toContain( '"color_picker_callback" has no effect' );
+		expect( result.warnings.join() ).toContain( '"toolbar_items_size" has no effect' );
+
+		const toolbar = page.locator( '#wpbody-content .tox-tinymce' ).first();
+
+		await toolbar.locator( '[data-mce-name="fontfamily"]' ).click();
+		await expect( page.locator( '.tox-collection__item' ).filter( { hasText: 'Fixture Font' } ) ).toBeVisible();
+		await page.keyboard.press( 'Escape' );
+
+		await toolbar.locator( '[data-mce-name="fontsize"]' ).click();
+		await expect( page.locator( '.tox-collection__item' ).filter( { hasText: '99pt' } ) ).toBeVisible();
+		await page.keyboard.press( 'Escape' );
+
+		await toolbar.locator( '[data-mce-name="forecolor"] + .tox-split-button__chevron, .tox-split-button__chevron' ).first().click();
+		await expect( page.locator( '.tox-swatch[data-mce-color="#FF0000"]' ) ).toBeVisible();
+	} );
+
 	test( 'switching tabs keeps a stable editor height, as on TinyMCE 4', async ( { page } ) => {
 		const height = () => page.locator( '#content_ifr' ).evaluate( ( frame ) => frame.getBoundingClientRect().height );
 

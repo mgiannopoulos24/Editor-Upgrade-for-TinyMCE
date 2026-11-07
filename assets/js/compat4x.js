@@ -71,6 +71,24 @@
 		'.tox-pop': 'mce-floatpanel',
 	};
 
+	// TinyMCE 4 settings that TinyMCE 8 reads under another name and otherwise ignores silently.
+	var RENAMED_SETTINGS = {
+		backcolor_cols: 'color_cols_background',
+		backcolor_map: 'color_map_background',
+		default_link_target: 'link_default_target',
+		font_formats: 'font_family_formats',
+		fontsize_formats: 'font_size_formats',
+		forecolor_cols: 'color_cols_foreground',
+		forecolor_map: 'color_map_foreground',
+		rel_list: 'link_rel_list',
+		target_list: 'link_target_list',
+		textcolor_cols: 'color_cols',
+		textcolor_map: 'color_map',
+	};
+
+	// TinyMCE 4 settings with no TinyMCE 8 equivalent, which TinyMCE 8 does not warn about.
+	var IGNORED_SETTINGS = [ 'backcolor_rows', 'color_picker_callback', 'forecolor_rows', 'inline_toolbar_position_handler', 'insert_button_items', 'override_viewport', 'textcolor_rows', 'toolbar_items_size' ];
+
 	var warned = {};
 
 	function warn( message ) {
@@ -364,6 +382,9 @@
 
 				return control;
 			},
+			unbind: function () {
+				api = null;
+			},
 			show: function () {
 				return control.visible( true );
 			},
@@ -373,7 +394,7 @@
 			bind: function ( newApi ) {
 				api = newApi;
 
-				if ( settings.stateSelector || 'active' in settings ) {
+				if ( settings.stateSelector || 'active' in settings || state.active ) {
 					control.active( state.active );
 				}
 
@@ -507,6 +528,40 @@
 			};
 		}
 
+		/*
+		 * TinyMCE 8 mounts the toolbar after the skin loads, which is after `init`. v4 ran onPostRender
+		 * before PreInit, and plugins keep `this` from it to use in their `init` handlers. So it runs at
+		 * the same point here, the control tracks its state until then, and mounting applies that state.
+		 */
+		function createButtonOnSetup( control ) {
+			var selector = control.settings.stateSelector;
+			var hasRendered = false;
+
+			function render() {
+				if ( ! hasRendered ) {
+					hasRendered = true;
+					trigger( control, 'postrender' );
+				}
+			}
+
+			if ( selector ) {
+				editor.on( 'NodeChange', function ( event ) {
+					control.active( editor.dom.getParents( event.element, selector, editor.getBody() ).length > 0 );
+				} );
+			}
+
+			editor.on( 'PreInit', render, true );
+
+			return function ( api ) {
+				control.bind( api );
+				render();
+
+				return function () {
+					control.unbind();
+				};
+			};
+		}
+
 		function needsActiveState( settings ) {
 			return !! ( settings.stateSelector || settings.selectable || 'active' in settings || getHandler( settings, 'postrender' ) );
 		}
@@ -615,7 +670,7 @@
 				text: settings.text,
 				tooltip: settings.tooltip,
 				icon: resolveIcon( settings ),
-				onSetup: createOnSetup( control ),
+				onSetup: createButtonOnSetup( control ),
 			};
 
 			if ( 'menubutton' === type ) {
@@ -1405,8 +1460,9 @@
 	 * the stored format and a reload would lose the paragraphs.
 	 */
 	function shimWordPressContent( editor ) {
+		// Only where core's plugin would have run, not on a plugin's own standalone editor.
 		function isActive() {
-			return ! editor.plugins.wordpress;
+			return !! editor.settings.compat4x_wordpress_plugin && ! editor.plugins.wordpress;
 		}
 
 		function hasWpautop() {
@@ -3301,6 +3357,10 @@
 			plugins = plugins.split( /[\s,]+/ );
 		}
 
+		if ( plugins.indexOf( 'wordpress' ) > -1 ) {
+			settings.compat4x_wordpress_plugin = true;
+		}
+
 		settings.plugins = plugins.filter( function ( name ) {
 			var keep = name && (
 				config.plugins.indexOf( name ) > -1 ||
@@ -3308,7 +3368,7 @@
 				tinymce.PluginManager.get( name )
 			);
 
-			if ( name && ! keep && MERGED_PLUGINS.indexOf( name ) === -1 ) {
+			if ( name && ! keep && 'wordpress' !== name && MERGED_PLUGINS.indexOf( name ) === -1 ) {
 				warn( 'Skipped TinyMCE plugin "' + name + '": not available in TinyMCE 8.' );
 			}
 
@@ -3337,6 +3397,25 @@
 			delete settings.api_key;
 			warn( 'Removed "api_key": TinyMCE 8 disables the editor when it is combined with the GPL license key.' );
 		}
+	}
+
+	function renameSettings( settings ) {
+		Object.keys( RENAMED_SETTINGS ).forEach( function ( name ) {
+			if ( name in settings ) {
+				if ( ! ( RENAMED_SETTINGS[ name ] in settings ) ) {
+					settings[ RENAMED_SETTINGS[ name ] ] = settings[ name ];
+				}
+
+				delete settings[ name ];
+			}
+		} );
+
+		IGNORED_SETTINGS.forEach( function ( name ) {
+			if ( name in settings ) {
+				warn( 'Setting "' + name + '" has no effect in TinyMCE 8.' );
+				delete settings[ name ];
+			}
+		} );
 	}
 
 	function normalizeSettings( settings ) {
@@ -3371,6 +3450,13 @@
 		if ( ! ( 'allow_html_in_comments' in settings ) ) {
 			settings.allow_html_in_comments = true;
 		}
+
+		// TinyMCE 8 would otherwise save a pasted image file into the post as base64.
+		if ( ! ( 'paste_data_images' in settings ) ) {
+			settings.paste_data_images = false;
+		}
+
+		renameSettings( settings );
 
 		// TinyMCE 8 needs a root block and warns on anything else, and it no longer reads `rtl_ui`.
 		if ( 'forced_root_block' in settings && ! settings.forced_root_block ) {

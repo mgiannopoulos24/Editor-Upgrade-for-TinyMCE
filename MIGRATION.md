@@ -49,6 +49,9 @@ Production pages do not log these messages. WordPress's own code triggers some o
 | `editor.setMode()` | Works, deprecated | Use `editor.mode.set()` |
 | `formatselect`, `styleselect`, `fontselect`, `fontsizeselect` in a toolbar | Renamed for you | Use `blocks`, `styles`, `fontfamily`, `fontsize` |
 | Commas between toolbar items | Converted for you | Use spaces |
+| `font_formats`, `fontsize_formats` | Renamed for you | Use `font_family_formats`, `font_size_formats` |
+| `textcolor_map`, `forecolor_map`, `backcolor_map`, and their `_cols` settings | Renamed for you | Use `color_map`, `color_map_foreground`, `color_map_background`, and `color_cols` |
+| `target_list`, `rel_list`, `default_link_target` | Renamed for you | Use `link_target_list`, `link_rel_list`, `link_default_target` |
 
 These parts of the API are unchanged, so no work is needed: `editor.on()`, `editor.addCommand()`, `editor.addShortcut()`, `editor.dom`, `editor.formatter`, `editor.selection`, `editor.undoManager`, `editor.notificationManager`, `tinymce.PluginManager.add()`, and the `tiny_mce_before_init`, `mce_external_plugins`, and `mce_buttons` filters.
 
@@ -66,6 +69,7 @@ These have no TinyMCE 8 equivalent. They log a message, then do nothing or retur
 | `tinymce.util.Color` | `undefined` | Use your own helper |
 | `tinymce.WPWindowManager`, `tinymce.InlineWindowManager` | `undefined` | Use `editor.windowManager` |
 | Dependencies in `PluginManager.add( name, plugin, dependencies )` | Not loaded | Load them with `mce_external_plugins` |
+| `color_picker_callback`, `toolbar_items_size`, `insert_button_items`, `*_rows` color settings | Ignored | Remove them |
 
 ### Behavior that differs without a message
 
@@ -76,6 +80,9 @@ These have no TinyMCE 8 equivalent. They log a message, then do nothing or retur
 - **Dialog `$el`.** `win.$el` is the TinyMCE 8 dialog, so it has no `.mce-*` elements inside.
 - **`forced_root_block: false`.** TinyMCE 8 requires a root block, so this becomes `p`. This one logs a message.
 - **Read-only mode.** `contentEditable` stays `true`, and TinyMCE blocks input instead. Use `editor.mode.isReadOnly()` to check it.
+
+- **Pasting from Word and Google Docs.** TinyMCE 4 cleaned up Word markup and turned fake bullets into lists. That filter is now part of TinyMCE's commercial PowerPaste, so `class="MsoNormal"` stays, and fake bullets stay as text.
+- **Removed paste settings.** `paste_word_valid_elements`, `paste_retain_style_properties`, `paste_convert_word_fake_lists`, `paste_enable_default_filters`, and `paste_filter_drop` have no effect. TinyMCE 8 logs these itself.
 
 ### Plugins that TinyMCE 8 no longer has
 
@@ -95,6 +102,7 @@ To do this, the plugin sets these TinyMCE 8 options back to their TinyMCE 4 beha
 | `sandbox_iframes` | `false` | `true` |
 | `convert_unsafe_embeds` | `false` | `true` |
 | `allow_html_in_comments` | `true` | `false` |
+| `paste_data_images` | `false` | `true` |
 
 A site can choose the TinyMCE 8 behavior through `tiny_mce_before_init`.
 

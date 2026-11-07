@@ -188,6 +188,54 @@ test.describe( 'compat4x: editor.addButton() and editor.addMenuItem()', () => {
 		expect( errors ).toEqual( [] );
 	} );
 
+	test( 'onPostRender runs before PreInit and init, as on TinyMCE 4', async ( { page } ) => {
+		const errors = collectErrors( page );
+
+		await page.goto( routes.postNew );
+		await expect( page.locator( '#content_ifr' ) ).toBeAttached();
+
+		const result = await page.evaluate( async () => {
+			const order: string[] = [];
+			const textarea = document.createElement( 'textarea' );
+			let stateInInit: boolean | undefined;
+
+			textarea.id = 'render-order';
+			document.querySelector( '#wpbody-content' )?.prepend( textarea );
+
+			const [ editor ] = await window.tinymce.init( {
+				selector: '#render-order',
+				toolbar: 'render_order',
+				setup( instance ) {
+					let control: TinyMCEV4Control;
+
+					instance.addButton( 'render_order', {
+						text: 'Render order',
+						onPostRender() {
+							control = this;
+							order.push( 'onPostRender' );
+						},
+					} );
+					instance.on( 'PreInit', () => order.push( 'PreInit' ) );
+					instance.on( 'init', () => {
+						order.push( 'init' );
+
+						// The toolbar is not mounted yet, so this state must wait for it.
+						control.active( true );
+						stateInInit = control.active();
+					} );
+				},
+			} );
+
+			return { order, stateInInit, id: editor.id };
+		} );
+
+		expect( result.order ).toEqual( [ 'onPostRender', 'PreInit', 'init' ] );
+		expect( result.stateInInit ).toBe( true );
+
+		await expect( page.getByRole( 'button', { name: 'Render order' } ) ).toHaveAttribute( 'aria-pressed', 'true' );
+		expect( errors ).toEqual( [] );
+	} );
+
 	test( 'a SaveContent handler can change the saved content', async ( { page } ) => {
 		const errors = collectErrors( page );
 
@@ -202,7 +250,8 @@ test.describe( 'compat4x: editor.addButton() and editor.addMenuItem()', () => {
 			return document.querySelector<HTMLTextAreaElement>( '#compat4x-fixture' )?.value;
 		} );
 
-		expect( saved ).toBe( 'one<!-- saved by fixture -->' );
+		// This editor has no `wordpress` plugin, so its <p> tags stay, as on TinyMCE 4.
+		expect( saved ).toBe( '<p>one</p><!-- saved by fixture -->' );
 		expect( errors ).toEqual( [] );
 	} );
 

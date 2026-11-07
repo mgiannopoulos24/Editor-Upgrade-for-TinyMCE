@@ -36,7 +36,8 @@ class Editor_Upgrade_For_TinyMCE_Settings {
 	 *
 	 * Drops TinyMCE 4 plugins removed upstream and the WordPress `wp*` plugins until they are
 	 * ported. Other names may be plugins registered in JavaScript with `PluginManager.add()`, which
-	 * only compat4x can check, so it decides about those at `tinymce.init()`.
+	 * only compat4x can check, so it decides about those at `tinymce.init()`. `wordpress` also goes
+	 * through to compat4x, which uses it to tell core's editors from standalone ones.
 	 *
 	 * @param string[] $plugins Internal TinyMCE plugin names.
 	 * @return string[]
@@ -58,7 +59,6 @@ class Editor_Upgrade_For_TinyMCE_Settings {
 			'textcolor',
 			'textpattern',
 			'toc',
-			'wordpress',
 			'wpautoresize',
 			'wpdialogs',
 			'wpeditimage',
@@ -110,6 +110,11 @@ class Editor_Upgrade_For_TinyMCE_Settings {
 
 		if ( ! isset( $settings['allow_html_in_comments'] ) ) {
 			$settings['allow_html_in_comments'] = true;
+		}
+
+		// TinyMCE 8 would otherwise save a pasted image file into the post as base64.
+		if ( ! isset( $settings['paste_data_images'] ) ) {
+			$settings['paste_data_images'] = false;
 		}
 
 		// TinyMCE 8 needs a root block and warns on anything else.

@@ -5,15 +5,20 @@ interface TinyMCEV4Control {
 	settings: Record<string, unknown>;
 	visible( state: boolean ): TinyMCEV4Control;
 	text( value: string ): TinyMCEV4Control;
+	active( state?: boolean ): boolean;
 }
 
 interface TinyMCEV4ButtonSpec {
 	text?: string;
 	cmd?: string;
 	onclick?( this: TinyMCEV4Control ): void;
+	stateSelector?: string;
+	onPostRender?( this: TinyMCEV4Control ): void;
 }
 
 interface TinyMCEEditor {
+	id: string;
+	on( event: string, callback: () => void ): void;
 	settings: {
 		license_key?: string;
 		api_key?: string;
@@ -34,6 +39,10 @@ interface TinyMCEEditor {
 	focus(): void;
 	execCommand( command: string ): void;
 	nodeChanged(): void;
+	getWin(): Window;
+	getContainer(): HTMLElement;
+	getBody(): HTMLElement;
+	focus(): void;
 }
 
 interface TinyMCE {
