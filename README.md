@@ -54,8 +54,9 @@ installs the Classic Editor plugin so `post.php` uses TinyMCE.
 | `bun run shell` | Open a shell in the wp-env CLI container |
 | `bun run lint` / `lint:fix` | Run PHPCS / PHPCBF |
 | `bun run test:e2e` | Run the Playwright e2e suite in Chromium |
-| `bun run test:e2e:browsers` | Run it in Firefox and WebKit |
+| `bun run test:e2e:browsers` | Run it in Firefox, WebKit, and phone emulation |
 | `bun run test:compat:record` | Re-record `tests/compat/v4-results.json` from real TinyMCE 4 |
+| `bun run test:corpus:record` | Re-record `tests/fixtures/content/v4-expected.json` from real TinyMCE 4 |
 | `bun run test:e2e:install` | Install the Chromium browser for Playwright |
 | `bun run i18n` | Regenerate `languages/editor-upgrade-for-tinymce.pot` |
 | `bun run bundle` | Build `build/editor-upgrade-for-tinymce.zip` |
@@ -68,8 +69,8 @@ the classic editor, the Classic block, the Text widget, the Customizer, and fron
 `wp_editor()`.
 
 Most expected values are recorded from real TinyMCE 4, by running the same code with this
-plugin deactivated: saved HTML (`tests/e2e-pw/utils/v4-baseline.ts`), the API
-(`v4-api.json`, `v4-*-probe.ts`), and the fixture plugins in `tests/compat/plugins/`. The code
+plugin deactivated: saved HTML (the 112-post corpus in `tests/fixtures/content/`), the API (`v4-api.json`,
+`v4-*-probe.ts`), and the fixture plugins in `tests/compat/plugins/`. The code
 in `MIGRATION.md` also runs as a test.
 
 Install the browser once with `bun run test:e2e:install`.
@@ -84,7 +85,10 @@ Install the browser once with `bun run test:e2e:install`.
 - `tests/e2e-pw/` — Playwright tests (`specs/`, `utils/`) and a test-only mu-plugin
 - `tests/compat/` — compatibility fixture plugins and their recorded TinyMCE 4 output
 - `MIGRATION.md` — guide for plugin authors
+- `tests/fixtures/content/` — the content corpus and its recorded TinyMCE 4 output
 - `docs/plan.md` — the full project plan
+- `docs/baseline.md` — measurements and the browser matrix
+- `docs/charter.md`, `docs/rfc.md`, `docs/compatibility.md` — charter, RFC draft, plugin results
 
 ## License
 

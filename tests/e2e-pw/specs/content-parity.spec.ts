@@ -1,6 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
 import { collectErrors, routes } from '../utils/page';
-import { V4_BASELINE } from '../utils/v4-baseline';
 import { getPostContent, resetEditorTab, setPluginState } from '../utils/wp-cli';
 
 async function openNewPost( page: Page ) {
@@ -28,29 +27,9 @@ test.describe( 'Saved HTML parity with TinyMCE 4', () => {
 	test.beforeEach( () => resetEditorTab() );
 	test.afterAll( () => resetEditorTab() );
 
-	for ( const [ name, { input, stored } ] of Object.entries( V4_BASELINE ) ) {
-		test( `Code -> Visual -> save: ${ name }`, async ( { page } ) => {
-			const errors = collectErrors( page );
-
-			await page.route( 'https://example.org/**', ( route ) => route.fulfill( { status: 200, body: '' } ) );
-			await openNewPost( page );
-			await page.locator( '#content-html' ).click();
-			await page.locator( '#content' ).fill( input );
-			await page.locator( '#content' ).evaluate( ( textarea: HTMLTextAreaElement ) => {
-				textarea.setSelectionRange( textarea.value.length, textarea.value.length );
-			} );
-			await page.locator( '#content-tmce' ).click();
-
-			const postId = await saveDraft( page );
-
-			expect( getPostContent( postId ) ).toBe( stored ?? input );
-			expect( errors.filter( ( error ) => ! error.includes( 'a.png' ) && ! error.includes( '404' ) ) ).toEqual( [] );
-		} );
-	}
-
 	// When the Code tab is the default, core restores the selection on `tinymce-editor-init`.
 	test( 'selection markers are not saved when the page opens on the Code tab', async ( { page } ) => {
-		const input = V4_BASELINE.caption.input;
+		const input = '[caption id="a" align="alignnone" width="10"]<img src="/a.png" alt="" width="10" height="10" /> cap[/caption]';
 
 		await openNewPost( page );
 		await page.locator( '#content-html' ).click();
@@ -115,6 +94,77 @@ test.describe( 'Saved HTML parity with TinyMCE 4', () => {
 		await expect( placeholder ).toHaveCSS( 'background-image', /script\.svg/ );
 	} );
 
+	test( 'a standalone editor without the wordpress plugin stays plain, as on TinyMCE 4', async ( { page } ) => {
+		await openNewPost( page );
+
+		const result = await page.evaluate( async () => {
+			const fired: string[] = [];
+			const textarea = document.createElement( 'textarea' );
+
+			window.jQuery( document ).on( 'tinymce-editor-setup tinymce-editor-init', ( event, editor ) => {
+				if ( 'standalone' === editor.id ) {
+					fired.push( event.type );
+				}
+			} );
+
+			textarea.id = 'standalone';
+			textarea.value = 'one\n\ntwo <b>b</b>';
+			document.querySelector( '#wpbody-content' )?.prepend( textarea );
+
+			const [ editor ] = await window.tinymce.init( { selector: '#standalone' } );
+			const content = editor.getContent();
+
+			editor.save();
+
+			return { content, saved: textarea.value, fired };
+		} );
+
+		// Recorded from real TinyMCE 4.
+		expect( result ).toEqual( {
+			content: '<p>one two <strong>b</strong></p>',
+			saved: '<p>one two <strong>b</strong></p>',
+			fired: [],
+		} );
+	} );
+
+	test( 'a pasted image file is not saved into the post as base64', async ( { page, browserName } ) => {
+		test.skip( 'firefox' === browserName, 'Firefox ignores clipboardData in a synthetic ClipboardEvent.' );
+
+		await openNewPost( page );
+
+		const pasteImage = ( settings: Record<string, unknown> ) =>
+			page.evaluate( async ( options ) => {
+				const textarea = document.createElement( 'textarea' );
+
+				textarea.id = `paste-${ Date.now() }`;
+				document.querySelector( '#wpbody-content' )?.prepend( textarea );
+
+				const [ editor ] = await window.tinymce.init( { selector: `#${ textarea.id }`, ...options } );
+				const frame = editor.getWin() as Window & typeof globalThis;
+				const data = new frame.DataTransfer();
+				const png = Uint8Array.from(
+					atob( 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/AAwAD/wH+1HY5WAAAAABJRU5ErkJggg==' ),
+					( character ) => character.charCodeAt( 0 )
+				);
+
+				editor.focus();
+				editor.setContent( '<p>s</p>' );
+				data.items.add( new frame.File( [ png ], 'a.png', { type: 'image/png' } ) );
+				editor.getBody().dispatchEvent(
+					new frame.ClipboardEvent( 'paste', { clipboardData: data, bubbles: true, cancelable: true } )
+				);
+
+				await new Promise( ( resolve ) => setTimeout( resolve, 600 ) );
+
+				return editor.getContent();
+			}, settings );
+
+		expect( await pasteImage( {} ) ).not.toContain( '<img' );
+
+		// A site can opt in, as on TinyMCE 4.
+		expect( await pasteImage( { paste_data_images: true } ) ).toContain( '<img' );
+	} );
+
 	test( 'tinymce-editor-setup and tinymce-editor-init fire for each editor', async ( { page } ) => {
 		await openNewPost( page );
 
@@ -128,7 +178,7 @@ test.describe( 'Saved HTML parity with TinyMCE 4', () => {
 
 			textarea.id = 'events';
 			document.querySelector( '#wpbody-content' )?.prepend( textarea );
-			await window.tinymce.init( { selector: '#events' } );
+			await window.tinymce.init( { selector: '#events', plugins: 'wordpress' } );
 
 			return events;
 		} );
@@ -197,7 +247,12 @@ test.describe( 'Saved HTML parity with TinyMCE 4', () => {
 			textarea.value = '<p>one</p>\n\n<p>two</p>';
 			document.querySelector( '#wpbody-content' )?.prepend( textarea );
 
-			const [ editor ] = await window.tinymce.init( { selector: '#no-autop', wpautop: false, indent: false } );
+			const [ editor ] = await window.tinymce.init( {
+				selector: '#no-autop',
+				plugins: 'wordpress',
+				wpautop: false,
+				indent: false,
+			} );
 
 			editor.save();
 

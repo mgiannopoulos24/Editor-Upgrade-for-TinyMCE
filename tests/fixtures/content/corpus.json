@@ -1,0 +1,578 @@
+[
+	{
+		"name": "code entities",
+		"category": "code",
+		"input": "<code>&lt;?php echo 1; ?&gt;</code>"
+	},
+	{
+		"name": "inline code",
+		"category": "code",
+		"input": "Use <code>foo()</code> here."
+	},
+	{
+		"name": "pre",
+		"category": "code",
+		"input": "<pre>a\n  b\n\nc</pre>"
+	},
+	{
+		"name": "pre entities",
+		"category": "code",
+		"input": "<pre>&lt;b&gt; &amp; \"x\"</pre>"
+	},
+	{
+		"name": "pre html",
+		"category": "code",
+		"input": "<pre><code>if (a &lt; b) {\n  c();\n}</code></pre>"
+	},
+	{
+		"name": "audio",
+		"category": "embeds",
+		"input": "<audio controls=\"controls\" src=\"/a.mp3\"></audio>"
+	},
+	{
+		"name": "audio shortcode",
+		"category": "embeds",
+		"input": "[audio src=\"https://example.org/a.mp3\"]"
+	},
+	{
+		"name": "embed",
+		"category": "embeds",
+		"input": "<embed src=\"/a.swf\" width=\"1\" height=\"1\" />"
+	},
+	{
+		"name": "embed shortcode",
+		"category": "embeds",
+		"input": "[embed]https://example.org/v[/embed]"
+	},
+	{
+		"name": "iframe",
+		"category": "embeds",
+		"input": "<iframe src=\"https://example.org/\" width=\"10\" height=\"10\"></iframe>"
+	},
+	{
+		"name": "iframeinline",
+		"category": "embeds",
+		"input": "a <iframe src=\"https://example.org/\" width=\"1\" height=\"1\"></iframe> b"
+	},
+	{
+		"name": "object",
+		"category": "embeds",
+		"input": "<object data=\"/a.swf\" width=\"1\" height=\"1\"></object>"
+	},
+	{
+		"name": "playlist shortcode",
+		"category": "embeds",
+		"input": "[playlist ids=\"1,2\"]"
+	},
+	{
+		"name": "video",
+		"category": "embeds",
+		"input": "<video controls=\"controls\" width=\"10\" height=\"10\"><source src=\"/a.mp4\" type=\"video/mp4\" /></video>"
+	},
+	{
+		"name": "video shortcode",
+		"category": "embeds",
+		"input": "[video src=\"https://example.org/a.mp4\" width=\"10\" height=\"10\"]"
+	},
+	{
+		"name": "emoji",
+		"category": "emoji",
+		"input": "Hello 😀 world"
+	},
+	{
+		"name": "emoji entity",
+		"category": "emoji",
+		"input": "Entity &#x1F600; here"
+	},
+	{
+		"name": "emoji heading",
+		"category": "emoji",
+		"input": "<h2>Title 🎉</h2>"
+	},
+	{
+		"name": "flag",
+		"category": "emoji",
+		"input": "Flag 🇬🇷 here"
+	},
+	{
+		"name": "zwj",
+		"category": "emoji",
+		"input": "Family 👨‍👩‍👧 here"
+	},
+	{
+		"name": "gallery basic",
+		"category": "galleries",
+		"input": "[gallery ids=\"1,2,3\"]"
+	},
+	{
+		"name": "gallery columns",
+		"category": "galleries",
+		"input": "[gallery columns=\"2\" ids=\"1,2\"]"
+	},
+	{
+		"name": "gallery order",
+		"category": "galleries",
+		"input": "[gallery orderby=\"rand\" ids=\"1,2\"]"
+	},
+	{
+		"name": "gallery size",
+		"category": "galleries",
+		"input": "[gallery size=\"medium\" link=\"file\" ids=\"1,2\"]"
+	},
+	{
+		"name": "gallery with text",
+		"category": "galleries",
+		"input": "Before\n\n[gallery ids=\"1\"]\n\nAfter"
+	},
+	{
+		"name": "all headings",
+		"category": "headings_lists_quotes",
+		"input": "<h1>One</h1>\n<h2>Two</h2>\n<h3>Three</h3>\n<h4>Four</h4>\n<h5>Five</h5>\n<h6>Six</h6>"
+	},
+	{
+		"name": "blockquote",
+		"category": "headings_lists_quotes",
+		"input": "<blockquote>Quote\n\nTwo</blockquote>"
+	},
+	{
+		"name": "dl",
+		"category": "headings_lists_quotes",
+		"input": "<dl>\n <dt>a</dt>\n <dd>b</dd>\n</dl>"
+	},
+	{
+		"name": "heading",
+		"category": "headings_lists_quotes",
+		"input": "<h2>Title</h2>\nText"
+	},
+	{
+		"name": "list after heading",
+		"category": "headings_lists_quotes",
+		"input": "<h2>Title</h2>\n<ul>\n <li>a</li>\n</ul>\nAfter"
+	},
+	{
+		"name": "list between text",
+		"category": "headings_lists_quotes",
+		"input": "one\n<ul>\n <li>a</li>\n</ul>\ntwo"
+	},
+	{
+		"name": "list first",
+		"category": "headings_lists_quotes",
+		"input": "<ul>\n <li>a</li>\n <li>b</li>\n</ul>"
+	},
+	{
+		"name": "mixed nested",
+		"category": "headings_lists_quotes",
+		"input": "<ul>\n <li>a\n<ol>\n <li>b</li>\n</ol>\n</li>\n</ul>"
+	},
+	{
+		"name": "nestedlist",
+		"category": "headings_lists_quotes",
+		"input": "<ul>\n <li>a\n<ul>\n <li>b</li>\n</ul>\n</li>\n</ul>"
+	},
+	{
+		"name": "olattrs",
+		"category": "headings_lists_quotes",
+		"input": "<ol start=\"3\" type=\"a\">\n <li value=\"5\">a</li>\n</ol>"
+	},
+	{
+		"name": "ordered nested",
+		"category": "headings_lists_quotes",
+		"input": "<ol>\n <li>a\n<ol>\n <li>b</li>\n</ol>\n</li>\n <li>c</li>\n</ol>"
+	},
+	{
+		"name": "quote cite",
+		"category": "headings_lists_quotes",
+		"input": "<blockquote cite=\"https://example.org/\">Quote\n<cite>Author</cite></blockquote>"
+	},
+	{
+		"name": "aligncenter",
+		"category": "images",
+		"input": "<img class=\"aligncenter size-full wp-image-5\" src=\"/a.png\" alt=\"\" />"
+	},
+	{
+		"name": "alignimg",
+		"category": "images",
+		"input": "<img class=\"alignright size-full wp-image-1\" src=\"/a.png\" alt=\"x\" width=\"10\" height=\"10\" />"
+	},
+	{
+		"name": "caption",
+		"category": "images",
+		"input": "[caption id=\"a\" align=\"alignnone\" width=\"10\"]<img src=\"/a.png\" alt=\"\" width=\"10\" height=\"10\" /> cap[/caption]"
+	},
+	{
+		"name": "caption center link",
+		"category": "images",
+		"input": "[caption id=\"attachment_3\" align=\"aligncenter\" width=\"100\"]<a href=\"/x\"><img class=\"wp-image-3\" src=\"/a.png\" alt=\"alt\" width=\"100\" height=\"50\" /></a> Linked[/caption]"
+	},
+	{
+		"name": "caption left",
+		"category": "images",
+		"input": "[caption id=\"attachment_2\" align=\"alignleft\" width=\"100\"]<img class=\"size-full wp-image-2\" src=\"/a.png\" alt=\"\" width=\"100\" height=\"50\" /> Left[/caption]"
+	},
+	{
+		"name": "figure",
+		"category": "images",
+		"input": "<figure class=\"wp-block-image\"><img src=\"/a.png\" alt=\"\" /><figcaption>Fig</figcaption></figure>"
+	},
+	{
+		"name": "image in paragraph",
+		"category": "images",
+		"input": "Text <img class=\"alignright\" src=\"/a.png\" alt=\"\" /> around."
+	},
+	{
+		"name": "linkimg",
+		"category": "images",
+		"input": "<a href=\"/x\"><img src=\"/a.png\" alt=\"\" /></a>"
+	},
+	{
+		"name": "srcset",
+		"category": "images",
+		"input": "<img class=\"alignnone size-medium wp-image-4\" src=\"/a-300.png\" srcset=\"/a-300.png 300w, /a.png 600w\" sizes=\"(max-width: 300px) 100vw, 300px\" alt=\"\" width=\"300\" height=\"150\" />"
+	},
+	{
+		"name": "void elements",
+		"category": "images",
+		"input": "one<br />two\n<hr />\n<img src=\"/a.png\" alt=\"\" />"
+	},
+	{
+		"name": "anchor",
+		"category": "links",
+		"input": "<a href=\"#section\">jump</a>\n\n<a id=\"section\"></a>Target"
+	},
+	{
+		"name": "bare url",
+		"category": "links",
+		"input": "https://example.org/page"
+	},
+	{
+		"name": "external",
+		"category": "links",
+		"input": "<a href=\"https://example.org/\" target=\"_blank\" rel=\"noopener noreferrer\">external</a>"
+	},
+	{
+		"name": "imgentity",
+		"category": "links",
+		"input": "<a title=\"a &amp; b\" href=\"/x?a=1&amp;b=2\">l</a>"
+	},
+	{
+		"name": "internal",
+		"category": "links",
+		"input": "See <a href=\"/about/\">about</a> page."
+	},
+	{
+		"name": "link around block",
+		"category": "links",
+		"input": "<a href=\"/x\"><h2>Heading link</h2></a>"
+	},
+	{
+		"name": "mailto",
+		"category": "links",
+		"input": "<a href=\"mailto:a@example.org?subject=Hi\">mail</a>"
+	},
+	{
+		"name": "tel",
+		"category": "links",
+		"input": "<a href=\"tel:+302100000000\">call</a>"
+	},
+	{
+		"name": "title attr",
+		"category": "links",
+		"input": "<a title=\"A title\" href=\"/x\">titled</a>"
+	},
+	{
+		"name": "google docs",
+		"category": "pasted",
+		"input": "",
+		"paste": {
+			"html": "<meta charset=\"utf-8\"><b style=\"font-weight:normal;\" id=\"docs-internal-guid-123\"><p dir=\"ltr\" style=\"line-height:1.38\"><span style=\"color:#ff0000;font-weight:400\">docs</span></p></b>",
+			"text": "docs"
+		}
+	},
+	{
+		"name": "google docs table",
+		"category": "pasted",
+		"input": "",
+		"paste": {
+			"html": "<b id=\"docs-internal-guid-1\"><table style=\"border:none\"><tbody><tr><td style=\"border:1px solid\"><p dir=\"ltr\"><span>c</span></p></td></tr></tbody></table></b>",
+			"text": "c"
+		}
+	},
+	{
+		"name": "word list",
+		"category": "pasted",
+		"input": "",
+		"paste": {
+			"html": "<p class=\"MsoListParagraph\" style=\"mso-list:l0 level1 lfo1\"><span style=\"mso-list:Ignore\">·<span>&nbsp;</span></span>one</p>",
+			"text": "one"
+		}
+	},
+	{
+		"name": "word paragraph",
+		"category": "pasted",
+		"input": "",
+		"paste": {
+			"html": "<p class=\"MsoNormal\" style=\"margin:0in;font-family:Calibri\"><span style=\"font-size:11.0pt;mso-fareast-font-family:Arial\">word</span><o:p></o:p></p>",
+			"text": "word"
+		}
+	},
+	{
+		"name": "brs",
+		"category": "plain",
+		"input": "a<br /><br />b"
+	},
+	{
+		"name": "empty paragraph",
+		"category": "plain",
+		"input": "one\n\n&nbsp;\n\ntwo"
+	},
+	{
+		"name": "entities",
+		"category": "plain",
+		"input": "a &amp; b &lt; c \"q\" é"
+	},
+	{
+		"name": "entities2",
+		"category": "plain",
+		"input": "&copy; &mdash; &#8217; &gt;"
+	},
+	{
+		"name": "line breaks",
+		"category": "plain",
+		"input": "one\ntwo\nthree"
+	},
+	{
+		"name": "long paragraph",
+		"category": "plain",
+		"input": "First sentence with a <strong>strong</strong> word and an <em>em</em> word.\n\nSecond paragraph, with \"quotes\" and an apostrophe's test."
+	},
+	{
+		"name": "nbspinline",
+		"category": "plain",
+		"input": "a&nbsp;b"
+	},
+	{
+		"name": "paragraphs",
+		"category": "plain",
+		"input": "one\n\ntwo"
+	},
+	{
+		"name": "attributes",
+		"category": "raw_html",
+		"input": "<a href=\"/x\" target=\"_blank\" rel=\"noopener\">l</a> <span style=\"color: red;\" class=\"c\">s</span>"
+	},
+	{
+		"name": "b and i",
+		"category": "raw_html",
+		"input": "one <b>bold</b> <i>ital</i>"
+	},
+	{
+		"name": "center",
+		"category": "raw_html",
+		"input": "<center>x</center>"
+	},
+	{
+		"name": "comment",
+		"category": "raw_html",
+		"input": "one\n\n<!-- note -->\n\ntwo"
+	},
+	{
+		"name": "condcomment",
+		"category": "raw_html",
+		"input": "a\n\n<!--[if IE]>x<![endif]-->\n\nb"
+	},
+	{
+		"name": "custom",
+		"category": "raw_html",
+		"input": "<my-el data-a=\"1\">x</my-el>"
+	},
+	{
+		"name": "dataattr",
+		"category": "raw_html",
+		"input": "<p id=\"a\" class=\"c\" data-x=\"1\">t</p>"
+	},
+	{
+		"name": "details",
+		"category": "raw_html",
+		"input": "<details><summary>a</summary>b</details>"
+	},
+	{
+		"name": "div",
+		"category": "raw_html",
+		"input": "<div class=\"a\">\n\ntext\n\n</div>"
+	},
+	{
+		"name": "emptydiv",
+		"category": "raw_html",
+		"input": "a\n<div></div>\nb"
+	},
+	{
+		"name": "emptyspan",
+		"category": "raw_html",
+		"input": "a<span class=\"x\"></span>b"
+	},
+	{
+		"name": "font",
+		"category": "raw_html",
+		"input": "<font color=\"red\">x</font> <u>y</u> <s>z</s> <del>d</del> <ins>i</ins>"
+	},
+	{
+		"name": "form",
+		"category": "raw_html",
+		"input": "<form action=\"/x\"><input name=\"a\" type=\"text\" /></form>"
+	},
+	{
+		"name": "jsurl",
+		"category": "raw_html",
+		"input": "<a href=\"javascript:alert(1)\">l</a>"
+	},
+	{
+		"name": "more tag",
+		"category": "raw_html",
+		"input": "one\n\n<!--more-->\n\ntwo"
+	},
+	{
+		"name": "morecustom",
+		"category": "raw_html",
+		"input": "a<!--more Read on-->b"
+	},
+	{
+		"name": "nextpage tag",
+		"category": "raw_html",
+		"input": "one\n\n<!--nextpage-->\n\ntwo"
+	},
+	{
+		"name": "noscript",
+		"category": "raw_html",
+		"input": "<noscript>x</noscript>"
+	},
+	{
+		"name": "onclick",
+		"category": "raw_html",
+		"input": "<a href=\"/x\" onclick=\"a()\">l</a>"
+	},
+	{
+		"name": "script",
+		"category": "raw_html",
+		"input": "one\n\n<script>var a = 1;</script>\n\ntwo"
+	},
+	{
+		"name": "script2",
+		"category": "raw_html",
+		"input": "<script src=\"/a.js\" async></script>"
+	},
+	{
+		"name": "section",
+		"category": "raw_html",
+		"input": "<section class=\"s\">\n\ntext\n\n</section>"
+	},
+	{
+		"name": "style",
+		"category": "raw_html",
+		"input": "one\n\n<style>.a{color:red}</style>\n\ntwo"
+	},
+	{
+		"name": "styleattr",
+		"category": "raw_html",
+		"input": "<p style=\"text-align: center; color: #FF0000;\">x</p>"
+	},
+	{
+		"name": "svg",
+		"category": "raw_html",
+		"input": "<svg width=\"1\" height=\"1\"><circle r=\"1\"></circle></svg>"
+	},
+	{
+		"name": "tagcomment",
+		"category": "raw_html",
+		"input": "a\n\n<!-- <b>x</b> -->\n\nb"
+	},
+	{
+		"name": "arabic",
+		"category": "rtl",
+		"input": "مرحبا بالعالم"
+	},
+	{
+		"name": "dir attr",
+		"category": "rtl",
+		"input": "<p dir=\"rtl\">שלום</p>\n<p dir=\"ltr\">Hello</p>"
+	},
+	{
+		"name": "hebrew",
+		"category": "rtl",
+		"input": "שלום עולם\n\nפסקה שנייה"
+	},
+	{
+		"name": "mixed",
+		"category": "rtl",
+		"input": "Hello שלום world عالم."
+	},
+	{
+		"name": "rtl list",
+		"category": "rtl",
+		"input": "<ul dir=\"rtl\">\n \t<li>א</li>\n \t<li>ב</li>\n</ul>"
+	},
+	{
+		"name": "adjacent",
+		"category": "shortcodes",
+		"input": "[one][two]\n\n[three]"
+	},
+	{
+		"name": "multi line",
+		"category": "shortcodes",
+		"input": "[fixture\n a=\"1\"\n b=\"2\"]"
+	},
+	{
+		"name": "nested",
+		"category": "shortcodes",
+		"input": "[outer][inner]x[/inner][/outer]"
+	},
+	{
+		"name": "self closing",
+		"category": "shortcodes",
+		"input": "[fixture a=\"1\" /]"
+	},
+	{
+		"name": "shortcode",
+		"category": "shortcodes",
+		"input": "one\n\n[gallery ids=\"1,2\"]\n\ntwo"
+	},
+	{
+		"name": "shortcode in paragraph",
+		"category": "shortcodes",
+		"input": "Text [fixture] more"
+	},
+	{
+		"name": "shortcodehtml",
+		"category": "shortcodes",
+		"input": "[x a=\"1\"]<strong>b</strong>[/x]"
+	},
+	{
+		"name": "single quotes",
+		"category": "shortcodes",
+		"input": "[fixture a='1' b=\"2\" c=3]"
+	},
+	{
+		"name": "caption table",
+		"category": "tables",
+		"input": "<table>\n<caption>Cap</caption>\n<tbody>\n<tr>\n<td>b</td>\n</tr>\n</tbody>\n</table>"
+	},
+	{
+		"name": "colspan",
+		"category": "tables",
+		"input": "<table>\n<tbody>\n<tr>\n<td colspan=\"2\" rowspan=\"1\">a</td>\n</tr>\n<tr>\n<td>b</td>\n<td>c</td>\n</tr>\n</tbody>\n</table>"
+	},
+	{
+		"name": "table first",
+		"category": "tables",
+		"input": "<table>\n<tbody>\n<tr>\n<td>a</td>\n</tr>\n</tbody>\n</table>\n&nbsp;"
+	},
+	{
+		"name": "tableattrs",
+		"category": "tables",
+		"input": "<table class=\"t\" border=\"1\">\n<tbody>\n<tr>\n<td colspan=\"2\">a</td>\n</tr>\n</tbody>\n</table>"
+	},
+	{
+		"name": "thead",
+		"category": "tables",
+		"input": "<table>\n<thead>\n<tr>\n<th>h</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>b</td>\n</tr>\n</tbody>\n</table>"
+	}
+]

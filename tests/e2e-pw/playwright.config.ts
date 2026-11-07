@@ -38,6 +38,7 @@ export default defineConfig( {
 		},
 		{
 			name: 'desktop',
+			testIgnore: /mobile\.spec/,
 			use: {
 				...devices[ 'Desktop Chrome' ],
 				storageState: authFile,
@@ -46,6 +47,7 @@ export default defineConfig( {
 		},
 		{
 			name: 'firefox',
+			testIgnore: /mobile\.spec/,
 			use: {
 				...devices[ 'Desktop Firefox' ],
 				storageState: authFile,
@@ -54,8 +56,27 @@ export default defineConfig( {
 		},
 		{
 			name: 'webkit',
+			testIgnore: /mobile\.spec/,
 			use: {
 				...devices[ 'Desktop Safari' ],
+				storageState: authFile,
+			},
+			dependencies: [ 'setup' ],
+		},
+		{
+			name: 'mobile-chrome',
+			testMatch: /mobile\.spec/,
+			use: {
+				...devices[ 'Pixel 7' ],
+				storageState: authFile,
+			},
+			dependencies: [ 'setup' ],
+		},
+		{
+			name: 'mobile-safari',
+			testMatch: /mobile\.spec/,
+			use: {
+				...devices[ 'iPhone 14' ],
 				storageState: authFile,
 			},
 			dependencies: [ 'setup' ],

@@ -1,0 +1,49 @@
+{
+	"embed": {
+		"stored": "<embed src=\"/a.swf\" width=\"1\" height=\"1\" />",
+		"status": "approved",
+		"reason": "TinyMCE 4 wrote <embed></embed>, and TinyMCE 8 self-closes it. Both parse the same.",
+		"approved": "2026-11-07, by the project owner"
+	},
+	"styleattr": {
+		"stored": "<p style=\"text-align: center; color: #FF0000;\">x</p>",
+		"status": "approved",
+		"reason": "TinyMCE 4 lowercased hex colors in style attributes, and TinyMCE 8 keeps their case. The color is the same.",
+		"approved": "2026-11-07, by the project owner"
+	},
+	"bare url": {
+		"stored": "https://example.org/page",
+		"status": "approved",
+		"reason": "TinyMCE 4 bug: a stray closing tag from its wpview marker added an empty paragraph. TinyMCE 8 stores the input unchanged.",
+		"approved": "2026-11-07, by the project owner"
+	},
+	"link around block": {
+		"stored": "&nbsp;\n\n<a href=\"/x\">\n<h2>Heading link</h2>\n</a>&nbsp;",
+		"status": "approved",
+		"reason": "TinyMCE 4 bug: it deleted a link wrapped around a heading. TinyMCE 8 keeps the link. An empty paragraph after it depends on browser timing, so both forms are allowed.",
+		"also": [
+			"&nbsp;\n\n<a href=\"/x\">\n<h2>Heading link</h2>\n</a>"
+		],
+		"approved": "2026-11-07, by the project owner"
+	},
+	"word paragraph": {
+		"stored": "<p class=\"MsoNormal\">word</p>",
+		"status": "open",
+		"reason": "Upstream moved the Word filter to the commercial PowerPaste. Open: plan task P5.7."
+	},
+	"word list": {
+		"stored": "<p class=\"MsoListParagraph\">· one</p>",
+		"status": "open",
+		"reason": "Upstream moved the Word filter to the commercial PowerPaste. Open: plan task P5.7. Fake bullets stay as text."
+	},
+	"google docs": {
+		"stored": "<p dir=\"ltr\">docs</p>\n&nbsp;",
+		"status": "open",
+		"reason": "TinyMCE 8 handles the Google Docs wrapper differently and adds a trailing empty paragraph. Open: plan task P5.7."
+	},
+	"google docs table": {
+		"stored": "<table>\n<tbody>\n<tr>\n<td>\n<p dir=\"ltr\">c</p>\n</td>\n</tr>\n</tbody>\n</table>\n&nbsp;",
+		"status": "open",
+		"reason": "TinyMCE 8 keeps the inner paragraph in table cells and adds a trailing empty paragraph. Open: plan task P5.7."
+	}
+}
