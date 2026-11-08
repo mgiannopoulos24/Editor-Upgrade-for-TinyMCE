@@ -16,7 +16,7 @@ WordPress still bundles TinyMCE 4.9.11 for the classic editor, the Classic block
 
 This is an early development version. WordPress's own editor features (Add Media in the toolbar, the "More" tag, the inline link and image toolbars, embed previews) are being ported and are not available yet.
 
-Toolbar buttons that TinyMCE renamed after version 4 (`formatselect`, `styleselect`, `fontselect`, `fontsizeselect`) are mapped to their TinyMCE 8 equivalents.
+Toolbar buttons that TinyMCE renamed after version 4 (`formatselect`, `styleselect`, `fontselect`, `fontsizeselect`) are mapped to their TinyMCE 8 equivalents. Plugins that add toolbar buttons and menu items with the TinyMCE 4 API (`editor.addButton()`, `editor.addMenuItem()`) keep working through the compatibility layer.
 
 == Installation ==
 
@@ -29,3 +29,31 @@ Toolbar buttons that TinyMCE renamed after version 4 (`formatselect`, `stylesele
 * Initial development version: TinyMCE 8.10.0 replaces the bundled TinyMCE 4
 * Map TinyMCE 4 toolbar buttons (`formatselect`, `styleselect`, `fontselect`, `fontsizeselect`) to their TinyMCE 8 names
 * Fix the Classic block failing to load because core passes an empty `external_plugins` array
+* Fix void elements being saved as `<br>` instead of `<br />` by keeping the TinyMCE 4 `xhtml` element format
+* Add `editor.addButton()`, `editor.addMenuItem()`, `editor.buttons`, and `editor.menuItems` for plugins written against TinyMCE 4, including menu, list box, and split buttons
+* Make the compatibility layer available to `setup` callbacks, which run before the `AddEditor` event
+* Keep the stored post format: remove `<p>` tags on save and restore them on load, as core's `wordpress` TinyMCE plugin does
+* Keep `<script>`, `<style>`, `<b>`, and `<i>` in Visual mode, and stop adding `sandbox=""` to iframes in saved content
+* Fire the `tinymce-editor-setup` and `tinymce-editor-init` events that plugins and core listen to
+* Fix selection markers being saved in post content and an empty paragraph being added before a leading list or table
+* Fix switching to Visual failing when the content starts with an iframe
+* Let `SaveContent` handlers change the saved content again; TinyMCE 8 ignores those changes
+* Fix selection markers being saved inside `<audio>`, `<video>`, `<object>`, and `<noscript>`, and keep comments that contain tags
+* Add a menu item's `context` to its menu, and support `on()`, `off()`, `fire()`, `getEl()`, `icon()`, and `visible()` on v4 controls
+* Load plugins registered with `PluginManager.add()` from the `plugins` setting
+* Square the editor frame so its corners no longer leave gaps inside the WordPress frame
+* Restore the `tinymce.Env` browser flags (`ie`, `iOS`, `mac`, `webkit`, `gecko`, ...) and `tinymce.isIE`, `isWebKit`, `isGecko`, `isMac`, `isOpera`
+* Translate TinyMCE 4 dialogs passed to `editor.windowManager.open()`, including form fields, tabs, URL dialogs, `getParams()`, and `getWindows()`
+* Restore `tinymce.util.XHR`, `Promise`, `JSON`, `JSONP`, `JSONRequest`, and `Class`, `tinymce.html.SaxParser`, `tinymce.dom.DomQuery` and `Sizzle`, and `tinymce.create()` and `createNS()`
+* Instantiate plugins with `new` as TinyMCE 4 did, so `tinymce.create()` plugins and functions that set `this` work
+* Keep the XHTML format in `tinymce.html.Writer` and `Serializer` when they are used directly
+* Add v4 class names to the editor chrome, menus, and dialogs for plugin CSS and core's toolbar height lookup
+* Skip plugins merged into TinyMCE 8 without a warning, and replace `forced_root_block: false` with `p`
+* Add `tinymce.ui` with the TinyMCE 4 control API, so plugins that extend it at load time keep running; controls do not render
+* Keep menus and dialogs above the admin bar, and let `tinymce.ui.FloatPanel.zIndex` move them, which the Customizer relies on
+* Add the TinyMCE 3 style events and `editor.controlManager` from core's `compat3x`, and `addContextToolbar()`, `addSidebar()`, `setMode()`, `getLang()`, `execCallback()`, `documentBaseUrl`, `dom.$`, `dom.toHex()`, `util.Delay`, and schema aliases
+* Log a debug message for every TinyMCE 4 API with no TinyMCE 8 equivalent, and for toolbar items with no button
+* Pass renamed TinyMCE 4 settings to TinyMCE 8, such as `font_formats`, `textcolor_map`, and `target_list`
+* Stop saving pasted image files into posts as base64, as on TinyMCE 4
+* Only apply WordPress's content handling to editors that load the `wordpress` plugin, as on TinyMCE 4
+* Run a button's `onPostRender` before the editor's `init` event, as on TinyMCE 4; TinyMCE 8 mounts the toolbar after it

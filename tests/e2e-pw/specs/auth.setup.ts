@@ -1,5 +1,5 @@
 import { test as setup } from '@playwright/test';
-import { credentials } from './helpers';
+import { credentials } from '../utils/auth';
 import { authFile } from '../playwright.config';
 
 /** Log in once; the desktop project reuses the saved cookies. */

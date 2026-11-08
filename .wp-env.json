@@ -1,28 +1,30 @@
 {
-  "core": null,
-  "phpVersion": "8.3",
-  "themes": [
-    "WordPress/twentytwentyfive"
-  ],
-  "plugins": [
-    "https://downloads.wordpress.org/plugin/plugin-check.zip",
-    "https://downloads.wordpress.org/plugin/classic-editor.zip"
-  ],
-  "mappings": {
-    "wp-content/plugins/editor-upgrade-for-tinymce": "."
-  },
-  "port": 8888,
-  "testsEnvironment": false,
-  "config": {
-    "WP_DEBUG": true,
-    "WP_DEBUG_LOG": true,
-    "WP_DEBUG_DISPLAY": false,
-    "SCRIPT_DEBUG": true,
-    "WP_ENVIRONMENT_TYPE": "local",
-    "DISALLOW_FILE_EDIT": false,
-    "WP_DEVELOPMENT_MODE": "plugin"
-  },
-  "lifecycleScripts": {
-    "afterStart": "wp-env run cli wp plugin activate editor-upgrade-for-tinymce classic-editor"
-  }
+	"core": null,
+	"phpVersion": "8.3",
+	"themes": [
+		"WordPress/twentytwentyfive"
+	],
+	"plugins": [
+		"https://downloads.wordpress.org/plugin/plugin-check.zip",
+		"https://downloads.wordpress.org/plugin/classic-editor.zip"
+	],
+	"mappings": {
+		"wp-content/plugins/editor-upgrade-for-tinymce": ".",
+		"wp-content/mu-plugins/editor-surfaces.php": "./tests/e2e-pw/mu-plugins/editor-surfaces.php",
+		"wp-content/mu-plugins/compat-fixtures.php": "./tests/compat/compat-fixtures.php"
+	},
+	"port": 8888,
+	"testsEnvironment": false,
+	"config": {
+		"WP_DEBUG": true,
+		"WP_DEBUG_LOG": true,
+		"WP_DEBUG_DISPLAY": false,
+		"SCRIPT_DEBUG": true,
+		"WP_ENVIRONMENT_TYPE": "local",
+		"DISALLOW_FILE_EDIT": false,
+		"WP_DEVELOPMENT_MODE": "plugin"
+	},
+	"lifecycleScripts": {
+		"afterStart": "wp-env run cli wp plugin activate editor-upgrade-for-tinymce classic-editor"
+	}
 }

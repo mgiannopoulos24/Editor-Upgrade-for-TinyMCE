@@ -552,6 +552,8 @@ The following table covers the options WordPress sets or is likely to encounter 
 4. **`license_key`.** Without `license_key: 'gpl'`, v8 disables the editor and shows a warning. This is a hard failure, not a cosmetic issue.
 5. **`sandbox_iframes`.** v8 will add `sandbox=""` to iframes by default. WordPress embeds (YouTube, Vimeo, Spotify, etc.) may stop working in the editor preview. Decide between exclusions and disabling sandboxing, with a security review.
 
+**Decision (plugin, November 2026):** `sandbox_iframes`, `convert_unsafe_embeds`, and `allow_html_in_comments` default to the v4 behavior (`false`, `false`, `true`), because the v8 defaults change saved post HTML, which the plugin must not do. This is no weaker than the v4 editor WordPress ships today. The values are only set when absent, so a site can turn each protection back on through `tiny_mce_before_init`. Revisit before any core proposal.
+
 ### 5.4 UI API
 
 | v4 API | v8 replacement | Compatibility notes |
@@ -1274,7 +1276,7 @@ The current bootstrap (`editor_js()`) prints `tinyMCEPreInit` with `baseURL`, `s
 |---|---|---|---|
 | `editor.addButton(id, opts)` | `editor.ui.registry.addButton/addToggleButton` | High | Map `icon`, `image`, `text`, `tooltip`, `onclick`, `onPostRender`, `cmd`, `stateSelector`. `image` becomes an SVG data URI or a registered icon. |
 | `editor.addMenuItem(id, opts)` | `editor.ui.registry.addMenuItem/addNestedMenuItem` | High | Map `context`, `menu`, `cmd`, `onclick`, `stateSelector`. |
-| `editor.addContextToolbar` | native | High | Same name in v8; shim mainly normalizes predicate strings. |
+| `editor.addContextToolbar` | `editor.ui.registry.addContextToolbar` | High | Removed from the editor in v8; the shim generates an ID and normalizes predicate strings and item arrays. |
 | `editor.buttons` | internal registry | Medium | Expose a proxy object backed by the registry where possible. Reads work; arbitrary writes register a button. |
 | `editor.settings` | `editor.options` | High | Proxy object with `get`, `set`, `has`, `unset`; reads fall back to `editor.options.get`. |
 | `tinymce.$` / `editor.$` | none (use `tinymce.dom.DomQuery` replacement) | Medium | Provide a small jQuery-like wrapper over `querySelectorAll` for the subset WP and plugins use: `each`, `on`, `off`, `attr`, `css`, `addClass`, `removeClass`, `hasClass`, `find`, `closest`, `append`, `remove`, `show`, `hide`, `is`, `val`, `text`, `html`, `width`, `height`, `offset`, `scrollTop`. |
@@ -1287,7 +1289,7 @@ The current bootstrap (`editor_js()`) prints `tinyMCEPreInit` with `baseURL`, `s
 | `editor.windowManager.open({url, width, height})` | `editor.windowManager.open({...})` with panel schema | Low–Medium | URL mode is gone; translate to an iframe panel. |
 | `editor.windowManager.open({items: [...], buttons: [...]})` | panel schema | Low | Translate common item types: `textbox`, `listbox`, `checkbox`, `button`, `container`, `label`. |
 | `tinymce.util.VK` | still present | High | No shim needed. |
-| `tinymce.util.Delay` | still present | High | No shim needed. |
+| `tinymce.util.Delay` | partly present | High | v8 keeps `setEditorTimeout`/`setEditorInterval`; `setTimeout`, `setInterval`, `clear*`, `requestAnimationFrame`, `debounce`, `throttle` are removed and shimmed. |
 | `tinymce.util.Tools.resolve` | still present | High | No shim needed. |
 | `tinymce.html.DomParser/Serializer/Schema/Writer` | still present | High | No shim needed. |
 | `tinymce.html.SaxParser` | removed | Low | Reimplement a subset on `DomParser`; attribute callbacks only. |
@@ -1342,6 +1344,8 @@ The current bootstrap (`editor_js()`) prints `tinyMCEPreInit` with `baseURL`, `s
 | `.tox-pop` | `mce-floatpanel` |
 | `.tox-tbtn` | `mce-btn` |
 | `.tox-toolbar__group` | `mce-btn-group` |
+
+**Implementation note (November 2026):** `.mce-btn`, `.mce-btn-group`, and `.mce-toolbar` are not added. Core's `editor.css` styles them and measurably restyles every toolbar button (margins, borders, backgrounds), while plugin rules for them expect the v4 layout anyway. `.mce-toolbar-grp` is kept, with its core padding and z-index neutralized in `assets/css/editor.css`, because core's `getToolbarHeight()` looks it up.
 
 This is a transition aid, not a compatibility guarantee. It fixes selectors, not layout assumptions. A plugin that positions `.mce-toolbar-grp` absolutely will still be wrong.
 
